@@ -47,3 +47,4 @@ Bu ders, sosyal bilimlerde veri analizi yapabilmek için gerekli temel programla
 - Karmaşık veri işlemleri:
   - Birleştirme (*merge*)
   - Gruplama (*grouping*) teknikleri
+# hayat-yolu-testi
