@@ -70,11 +70,13 @@ UYUM_PROFILI = {
 # Sorular: JSON'dan yükle
 # -------------------------
 @st.cache_data
-def sorulari_yukle():
+def sorulari_yukle(dosya_mtime: float):
     dosya = Path(__file__).parent / "sorular.json"
     with open(dosya, "r", encoding="utf-8") as f:
         data = json.load(f)
         # st.sidebar.write("JSON ham eleman sayısı:", len(data))
+        st.sidebar.write("SORU DOSYASI:", str(dosya.resolve()))
+        st.sidebar.write("SORU DOSYASI MTIME:", dosya_mtime)
 
     sorular = []
     for item in data:
@@ -85,7 +87,10 @@ def sorulari_yukle():
         sorular.append((soru, secenekler))
     return sorular
 
-SORULAR = sorulari_yukle()
+
+dosya = Path(__file__).parent / "sorular.json"
+SORULAR = sorulari_yukle(dosya.stat().st_mtime)
+
 if "debug_mode" not in st.session_state:
     st.session_state.debug_mode = False
 
