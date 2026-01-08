@@ -1,0 +1,277 @@
+[
+  {
+    "soru": "Telefonuna gecenin bir yarısı tek kelime mesaj geliyor: “SEÇ.”",
+    "secenekler": [
+      {
+        "yazi": "Mesajı sessize alıp sabah bakarım",
+        "etki": { "kontrol": 3 },
+        "mini_sahne": "Karanlıkta panik yok. Önce kontrol, sonra karar."
+      },
+      {
+        "yazi": "Kim bu diye araştırırım",
+        "etki": { "merak": 1, "kontrol": 1 },
+        "mini_sahne": "İz sürüyorsun. Detaylar sana ipucu gibi geliyor."
+      },
+      {
+        "yazi": "Hemen cevap yazarım: 'Ne seçimi?'",
+        "etki": { "cesaret": 3 },
+        "mini_sahne": "Doğrudan temasa giriyorsun. Cesur, net."
+      },
+      {
+        "yazi": "Arayıp iyi misin diye sorarım",
+        "etki": { "empati": 1 },
+        "mini_sahne": "Önce insan. Durum ne, kimin yardıma ihtiyacı var?"
+      }
+    ]
+  },
+  {
+    "soru": "Ertesi gün yolda yürürken yerde parlak bir anahtar görüyorsun.",
+    "secenekler": [
+      {
+        "yazi": "Cebime koyarım, sonra düşünürüm",
+        "etki": { "kontrol": 2 },
+        "mini_sahne": "Kaynak topladın. Ne zaman lazım olacağı belli olmaz."
+      },
+      {
+        "yazi": "Neye ait olabilir diye çevreyi incelerim",
+        "etki": { "merak": 3 },
+        "mini_sahne": "Burası bir sahne. Her şey bir işaret."
+      },
+      {
+        "yazi": "Kapılara bakıp denemek isterim",
+        "etki": { "cesaret": 2 },
+        "mini_sahne": "Denemeden bilemezsin. Risk, bazen kısayoldur."
+      },
+      {
+        "yazi": "Birine ait mi diye etrafa sorarım",
+        "etki": { "empati": 1 },
+        "mini_sahne": "Kayıp eşya değil, belki kayıp bir hikaye."
+      }
+    ]
+  },
+  {
+    "soru": "Bir kafede oturuyorsun. Garson masaya not bırakıyor: “Bugün tek bir alışkanlığını değiştir.”",
+    "secenekler": [
+      {
+        "yazi": "Plan yaparım: 7 gün takip ederim",
+        "etki": { "kontrol": 3 },
+        "mini_sahne": "Sürdürülebilir değişim, ölçülebilir olmalı."
+      },
+      {
+        "yazi": "Merak ettiğim yeni bir şeyi denerim",
+        "etki": { "merak": 2 },
+        "mini_sahne": "Rutin kırılırsa zihin açılır."
+      },
+      {
+        "yazi": "Zor olanı seçerim: ertelersem kaybederim",
+        "etki": { "cesaret": 2 },
+        "mini_sahne": "Kendine meydan okuma moduna girdin."
+      },
+      {
+        "yazi": "Birine yardım ederek başlarım",
+        "etki": { "empati": 1 },
+        "mini_sahne": "Değişim en hızlı başkasına dokununca olur."
+      }
+    ]
+  },
+  {
+    "soru": "Birisi sana ‘Çok düşünüyorsun’ diyor. İçinden ne geçiyor?",
+    "secenekler": [
+      {
+        "yazi": "Haklı. Basitleştirip sistem kurmalıyım",
+        "etki": { "kontrol": 2 },
+        "mini_sahne": "Düşünceyi sürece çevirme refleksi."
+      },
+      {
+        "yazi": "Düşünmek güzeldir, yeni bağlantılar çıkar",
+        "etki": { "merak": 3 },
+        "mini_sahne": "Zihin haritası sende sürekli çalışır."
+      },
+      {
+        "yazi": "Düşünmek yetmez, hareket şart",
+        "etki": { "cesaret": 2 },
+        "mini_sahne": "Düşünceyi aksiyona çevirmeyi seçiyorsun."
+      },
+      {
+        "yazi": "Belki de beni anlamıyorlar",
+        "etki": { "empati": 1 },
+        "mini_sahne": "İletişim boşluğu hissediyorsun, köprü kurmak istersin."
+      }
+    ]
+  },
+  {
+    "soru": "Gece rüyanda bir yol ayrımı görüyorsun. Solda sis, sağda ışık.",
+    "secenekler": [
+      {
+        "yazi": "Işığa giderim, riski azaltırım",
+        "etki": { "kontrol": 2 },
+        "mini_sahne": "Öngörülebilir olanı seçtin."
+      },
+      {
+        "yazi": "Sise giderim, orada bir şey var",
+        "etki": { "merak": 3 },
+        "mini_sahne": "Bilinmeyenin çağrısı güçlü."
+      },
+      {
+        "yazi": "Hiç düşünmem, koşarım",
+        "etki": { "cesaret": 3 },
+        "mini_sahne": "Karar anı uzamaz. Hareket başlar."
+      },
+      {
+        "yazi": "İkisini de denemek için birini çağırırım",
+        "etki": { "empati": 1 },
+        "mini_sahne": "Yolu yalnız yürümek zorunda değilsin."
+      }
+    ]
+  },
+  {
+    "soru": "Bir proje gecikiyor ve ekip dağınık. İlk refleksin ne?",
+    "secenekler": [
+      {
+        "yazi": "Hemen plan çıkarır, görevleri netleştiririm.",
+        "etki": { "kontrol": 2, "cesaret": 1 },
+        "mini_sahne": "Kaosu azaltmak için planı masaya koydun."
+      },
+      {
+        "yazi": "Sorunun kaynağını araştırır, veriye bakarım.",
+        "etki": { "merak": 2, "kontrol": 1 },
+        "mini_sahne": "Önce teşhis, sonra tedavi dedin."
+      }
+    ]
+  },
+  {
+    "soru": "Bir arkadaşın moral olarak çökmüş. Ne yaparsın?",
+    "secenekler": [
+      {
+        "yazi": "Dinler, yanında olduğumu hissettiririm.",
+        "etki": { "empati": 3 },
+        "mini_sahne": "Sözden önce varlığın iyi geldi."
+      },
+      {
+        "yazi": "Somut çözüm önerileri çıkarırım.",
+        "etki": { "kontrol": 2, "cesaret": 1 },
+        "mini_sahne": "Duyguyu kabul edip aksiyona geçtin."
+      }
+    ]
+  },
+  {
+    "soru": "Yeni bir fırsat çıktı ama riskli. Kararın?",
+    "secenekler": [
+      {
+        "yazi": "Küçük bir deneme yapıp ölçerim.",
+        "etki": { "kontrol": 2, "merak": 1 },
+        "mini_sahne": "Pilot uygulama ile riski böldün."
+      },
+      {
+        "yazi": "Risk alır, hızlı girerim.",
+        "etki": { "cesaret": 3 },
+        "mini_sahne": "Beklemek yerine hamle yaptın."
+      }
+    ]
+  },
+  {
+    "soru": "Bir konuda eleştirildin. İlk tepkin?",
+    "secenekler": [
+      {
+        "yazi": "Neyi geliştirebilirim diye analiz ederim.",
+        "etki": { "kontrol": 2, "merak": 1 },
+        "mini_sahne": "Eleştiriyi veri gibi kullandın."
+      },
+      {
+        "yazi": "Duygu yükselir ama sakinleşip konuşurum.",
+        "etki": { "empati": 2, "kontrol": 1 },
+        "mini_sahne": "Tansiyonu düşürüp netleştirdin."
+      }
+    ]
+  },
+  {
+    "soru": "Zamanın kısıtlı, işler çok. Nasıl ilerlersin?",
+    "secenekler": [
+      {
+        "yazi": "Öncelik listesi yapar, sırayla giderim.",
+        "etki": { "kontrol": 3 },
+        "mini_sahne": "Öncelik koyup rahatladın."
+      },
+      {
+        "yazi": "En kritik olana dalar, hızla bitiririm.",
+        "etki": { "cesaret": 2, "kontrol": 1 },
+        "mini_sahne": "Kesip biçmeden en kritiği hallettin."
+      }
+    ]
+  },
+  {
+    "soru": "Bir ortamda kimse konuşmuyor, garip bir sessizlik var.",
+    "secenekler": [
+      {
+        "yazi": "Buz kıran bir soru sorarım.",
+        "etki": { "merak": 2, "empati": 1 },
+        "mini_sahne": "Ortamı açmak için merakını kullandın."
+      },
+      {
+        "yazi": "Söz alır, gündemi ben kurarım.",
+        "etki": { "cesaret": 2, "kontrol": 1 },
+        "mini_sahne": "Liderliği üstlenip akışı başlattın."
+      }
+    ]
+  },
+  {
+    "soru": "Bir işi yaparken en çok ne seni motive eder?",
+    "secenekler": [
+      {
+        "yazi": "Sistem kurup gelişimi görmek.",
+        "etki": { "kontrol": 2, "merak": 1 },
+        "mini_sahne": "Süreç iyileştirme seni besledi."
+      },
+      {
+        "yazi": "Zor hedefi kırıp geçmek.",
+        "etki": { "cesaret": 2, "kontrol": 1 },
+        "mini_sahne": "Meydan okuma seni ateşledi."
+      }
+    ]
+  },
+  {
+    "soru": "Birisi sözünü tutmadı. Ne yaparsın?",
+    "secenekler": [
+      {
+        "yazi": "Net sınır koyar, tekrarını istemem.",
+        "etki": { "kontrol": 2, "cesaret": 1 },
+        "mini_sahne": "Standartlarını netleştirdin."
+      },
+      {
+        "yazi": "Nedenini anlamaya çalışırım.",
+        "etki": { "empati": 2, "merak": 1 },
+        "mini_sahne": "Önce niyeti, sonra davranışı okudun."
+      }
+    ]
+  },
+  {
+    "soru": "Bir konuda kararsız kaldın. Hangisi daha 'sen'?",
+    "secenekler": [
+      {
+        "yazi": "Daha çok bilgi toplarım.",
+        "etki": { "merak": 3 },
+        "mini_sahne": "Belirsizliği bilgiyle çözdün."
+      },
+      {
+        "yazi": "Kriter koyar, karar veririm.",
+        "etki": { "kontrol": 2, "cesaret": 1 },
+        "mini_sahne": "Kural koyup zihnini rahatlattın."
+      }
+    ]
+  },
+  {
+    "soru": "Bir gün tamamen boş. Ne yaparsın?",
+    "secenekler": [
+      {
+        "yazi": "Yeni bir şey dener, keşfe çıkarım.",
+        "etki": { "merak": 2, "cesaret": 1 },
+        "mini_sahne": "Rutin dışına çıktın."
+      },
+      {
+        "yazi": "Düzen kurar, eksikleri toparlarım.",
+        "etki": { "kontrol": 3 },
+        "mini_sahne": "Dağınık işleri kapatıp ferahladın."
+      }
+    ]
+  }
+]
