@@ -1,50 +1,79 @@
-# Sosyal Bilimciler için Python
+# Life Path Test (Streamlit MVP)
 
-Bu ders, sosyal bilimlerde veri analizi yapabilmek için gerekli temel programlama ve hesaplama becerilerini kazandırmayı hedefler. Katılımcılar, Python programlamaya girişle başlayarak veri tipleri, koşullu ifadeler, döngüler ve fonksiyonlar gibi temel yapı taşlarını öğrenecek; ardından **NumPy** ve **Pandas** kütüphaneleriyle veri işleme ve analiz tekniklerini uygulamalı olarak geliştireceklerdir.
+Life Path Test is a small Streamlit-based web application designed as a learning-focused MVP rather than a finished or validated product.
 
----
-
-## Ders Planı
-
-### 1. Anaconda Navigator ve Google Colab Kurulumu
-
-- [Python’a başlamak için güzel bir kaynak](https://www.w3schools.com/python/default.asp)  
-- [Anaconda kurulum rehberi](https://docs.anaconda.com/anaconda/install/)  
-- [Google Colab bağlantısı](https://colab.research.google.com/?utm_source=scs-index)  
-- [Yazılım kurulum yönergeleri](https://github.com/fuatkina/Veri-Analizi-Okulu_HSB-Modulu_Python_2025-2026/blob/main/Python%20-%20Kurulum%20Rehberi.pdf)  
-- Python programlamaya genel bakış  
-- Veri tipleri  
-- Listeler  
+The project explores how a simple, interactive questionnaire can be structured, presented to users, and iterated over time using collected interaction data.
 
 ---
 
-### 2. Python Programlamanın Temelleri
+## Purpose of the Project
 
-- Kümeler (sets) ve sözlükler (dictionaries)  
-- Temel işlemler  
-- Koşullu ifadeler (*if statements*)  
-- Fonksiyonlar  
-- Döngüler  
-- Python’da problem çözme: Alıştırmalar  
+The main goal of this project is not to provide accurate personality analysis or scientific results.
 
----
+Instead, it focuses on:
+- Building a complete but small-scale product
+- Understanding user flow from start to finish
+- Practicing how data can inform iteration decisions
+- Learning how to move from a static idea to an evolving product
 
-### 3. NumPy ve Matplotlib
-
-- Listelerden veri setlerine geçiş  
-- Veri görselleştirmeye giriş  
-- **NumPy**’ye giriş  
-- **NumPy** ve **Matplotlib** kullanımı  
+This project is intentionally scoped to remain simple and flexible.
 
 ---
 
-### 4. Pandas ile Veri Manipülasyonu
+## How It Works
 
-- **Pandas**’a giriş  
-- Veri seçimi ve indeksleme  
-- Veri üzerinde temel işlemler  
-- Eksik veri yönetimi  
-- Karmaşık veri işlemleri:
-  - Birleştirme (*merge*)
-  - Gruplama (*grouping*) teknikleri
-# hayat-yolu-testi
+- Questions are loaded dynamically from JSON files
+- Users answer a sequence of questions through a Streamlit interface
+- Responses are processed using basic scoring logic
+- A result profile is generated at the end of the session
+- Anonymous interaction data is stored for later analysis
+
+The structure allows questions and logic to be adjusted without changing the core application code.
+
+---
+
+## Current Features
+
+- JSON-driven question system
+- Session-based questionnaire flow
+- Basic scoring and result generation
+- Lightweight data logging (JSONL)
+
+---
+
+## Current Limitations
+
+- No scientific or psychological validation
+- Minimal error handling
+- Limited analytics and visualization
+- Simple UI focused on functionality over design
+
+These limitations are intentional and aligned with the project’s learning-first approach.
+
+---
+
+## v2 Roadmap (In Progress)
+
+The next iteration focuses on moving from interaction to insight:
+
+- Session-level event logging
+- Structured data storage (SQLite)
+- Basic admin analytics page
+- Question-level drop-off analysis
+- Result distribution overview
+- Share link click tracking
+
+---
+
+## Tech Stack
+
+- Python
+- Streamlit
+- JSON / JSONL
+- SQLite (planned)
+
+---
+
+## Status
+
+Active – under continuous iteration as part of a broader AI product development learning process.
