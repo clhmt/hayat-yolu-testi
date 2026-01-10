@@ -71,7 +71,7 @@ UYUM_PROFILI = {
 # -------------------------
 @st.cache_data
 def sorulari_yukle(dosya_mtime: float):
-    dosya = Path(__file__).parent / "sorular.json"
+    dosya = Path(__file__).parent / "data/questions.json"
     with open(dosya, "r", encoding="utf-8") as f:
         data = json.load(f)
         # st.sidebar.write("JSON ham eleman sayısı:", len(data))
@@ -88,14 +88,14 @@ def sorulari_yukle(dosya_mtime: float):
     return sorular
 
 
-dosya = Path(__file__).parent / "sorular.json"
+dosya = Path(__file__).parent / "data/questions.json"
 SORULAR = sorulari_yukle(dosya.stat().st_mtime)
 
 if "debug_mode" not in st.session_state:
     st.session_state.debug_mode = False
 
 # st.sidebar.write("SORU SAYISI:", len(SORULAR))
-# st.sidebar.write("SORULAR DOSYASI:", str((Path(__file__).parent / "sorular.json").resolve()))
+# st.sidebar.write("SORULAR DOSYASI:", str((Path(__file__).parent / "data/questions.json").resolve()))
 
 
 # -------------------------
