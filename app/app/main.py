@@ -6,8 +6,9 @@ from datetime import datetime, date
 import uuid
 from compatibility import compute_compatibility_score
 from ui_components import render_match_card
+from app.utils import load_json
 
-
+SORULAR = load_json("questions.json")
 
 st.set_page_config(page_title="Hayat Yolu Testi", page_icon="🔮", layout="centered")
 
@@ -70,13 +71,12 @@ UYUM_PROFILI = {
 # Sorular: JSON'dan yükle
 # -------------------------
 @st.cache_data
-def sorulari_yukle(dosya_mtime: float):
-    dosya = Path(__file__).parent / "data/questions.json"
-    with open(dosya, "r", encoding="utf-8") as f:
-        data = json.load(f)
-        # st.sidebar.write("JSON ham eleman sayısı:", len(data))
-        st.sidebar.write("SORU DOSYASI:", str(dosya.resolve()))
-        st.sidebar.write("SORU DOSYASI MTIME:", dosya_mtime)
+# app/utils.py
+def load_json(filename: str) -> dict:
+    path = data_path(filename)
+    with path.open("r", encoding="utf-8") as f:
+        return json.load(f)
+
 
     sorular = []
     for item in data:
