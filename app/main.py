@@ -326,15 +326,23 @@ def sonuc_profili_uret(baskin, ikincil):
     }
     return profil
 
+@st.cache_data(show_spinner=False)
+def cached_read_jsonl(path_str: str):
+    """
+    JSONL dosyasını cache'li şekilde okur.
+    path_str string olmalı (Path cache anahtarında bazen sorun çıkarır).
+    """
+    report = read_jsonl(Path(path_str))
+    return report.records
 
 def jsonl_oku(limit=80):
-    report = read_jsonl(RESULTS_LOG_PATH)
-    records = report.records
+    records = cached_read_jsonl(str(RESULTS_LOG_PATH))
     if not records:
         return []
     if limit is None:
         return records
     return records[-limit:]
+
 
 
 def puan_benzerligi(me, other):
@@ -575,6 +583,8 @@ def run():
                 pass
 
             st.session_state.logged = True
+            
+            cached_read_jsonl.clear()
 
         st.success(
             f"Baskın yönün: **{a['ad']} {a.get('ikon','')}**  |  "
