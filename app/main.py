@@ -4,11 +4,13 @@ import json
 from pathlib import Path
 from datetime import datetime, date
 import uuid
-from compatibility import compute_compatibility_score
-from ui_components import render_match_card
+
+from app.compatibility import compute_compatibility_score
+from app.ui_components import render_match_card
 from app.utils import load_json
 
 SORULAR = load_json("questions.json")
+
 
 st.set_page_config(page_title="Hayat Yolu Testi", page_icon="🔮", layout="centered")
 
