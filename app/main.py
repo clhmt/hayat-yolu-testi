@@ -9,6 +9,16 @@ from app.compatibility import compute_compatibility_score
 from app.ui_components import render_match_card
 from app.utils import load_json
 
+from app.storage import (
+    append_unique_by_profile_id,
+    ensure_unique_profile_id,
+    find_by_profile_id,
+    read_jsonl,
+)
+
+# Tek kaynak: log dosyası app/ klasörü içinde (senin eski düzeninle uyumlu)
+RESULTS_LOG_PATH = Path(__file__).parent / "results_log.jsonl"
+
 
 # -------------------------
 # Sorular: JSON -> internal format
@@ -200,30 +210,6 @@ def dogum_tarihi_secici(varsayilan: date) -> date:
     return date(yil, ay_index + 1, gun)
 
 
-def profili_id_ile_oku(profile_id: str):
-    dosya = Path(__file__).parent / "results_log.jsonl"
-    if not dosya.exists():
-        return None
-
-    try:
-        with open(dosya, "r", encoding="utf-8") as f:
-            lines = f.readlines()
-        for line in reversed(lines):
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                p = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if p.get("profile_id") == profile_id:
-                return p
-    except Exception:
-        return None
-
-    return None
-
-
 def paylasim_sayfasi_goster(profil: dict):
     st.title("🔮 Hayat Yolu Testi")
     st.caption("Paylaşılan sonuç görüntüleniyor.")
@@ -341,27 +327,14 @@ def sonuc_profili_uret(baskin, ikincil):
     return profil
 
 
-def sonuclari_logla(profil):
-    dosya = Path(__file__).parent / "results_log.jsonl"
-    with open(dosya, "a", encoding="utf-8") as f:
-        f.write(json.dumps(profil, ensure_ascii=False) + "\n")
-
-
 def jsonl_oku(limit=80):
-    dosya = Path(__file__).parent / "results_log.jsonl"
-    if not dosya.exists():
+    report = read_jsonl(RESULTS_LOG_PATH)
+    records = report.records
+    if not records:
         return []
-    satirlar = []
-    with open(dosya, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                satirlar.append(json.loads(line))
-            except json.JSONDecodeError:
-                continue
-    return satirlar[-limit:]
+    if limit is None:
+        return records
+    return records[-limit:]
 
 
 def puan_benzerligi(me, other):
@@ -503,7 +476,7 @@ def run():
     # 1) Paylaşım linki kontrolü (SADECE BURADA)
     qid = st.query_params.get("id", None)
     if qid:
-        paylasilan = profili_id_ile_oku(str(qid))
+        paylasilan = find_by_profile_id(RESULTS_LOG_PATH, str(qid))
         if paylasilan:
             paylasim_sayfasi_goster(paylasilan)
             st.stop()
@@ -591,7 +564,16 @@ def run():
         profil = st.session_state.final_profile
 
         if not st.session_state.get("logged", False):
-            sonuclari_logla(profil)
+            record = dict(profil)
+            record["profile_id"] = ensure_unique_profile_id(RESULTS_LOG_PATH, record.get("profile_id"))
+
+            written, pid = append_unique_by_profile_id(RESULTS_LOG_PATH, record)
+
+            try:
+                profil["profile_id"] = pid
+            except Exception:
+                pass
+
             st.session_state.logged = True
 
         st.success(
