@@ -161,6 +161,9 @@ def ensure_session_defaults():
         st.session_state.astro = False
     if "profile_id" not in st.session_state:
         st.session_state.profile_id = str(uuid.uuid4())
+    if "compat_cache" not in st.session_state:
+        st.session_state.compat_cache = {}
+
 
 
 def reset_game():
@@ -176,6 +179,7 @@ def reset_game():
     st.session_state.profile_id = str(uuid.uuid4())
     if "final_profile" in st.session_state:
         del st.session_state["final_profile"]
+    st.session_state.compat_cache = {}
 
 
 # -------------------------
@@ -388,15 +392,22 @@ def uyum_maddeleri(me, other):
 
 
 def uyum_breakdown(me, other):
+        # Pair bazlı cache: aynı ikiliyi tekrar hesaplama
+    cache = st.session_state.get("compat_cache", {})
+    id_a = str(me.get("profile_id", "A"))
+    id_b = str(other.get("profile_id", "B"))
+    pair_key = tuple(sorted([id_a, id_b]))
+
+    if pair_key in cache:
+        return cache[pair_key]
+
     puan_me = me.get("puan", {}) or {}
     puan_other = other.get("puan", {}) or {}
 
     profile_a = {ARCHETYPE_MAP[k]: float(v) for k, v in puan_me.items() if k in ARCHETYPE_MAP}
     profile_b = {ARCHETYPE_MAP[k]: float(v) for k, v in puan_other.items() if k in ARCHETYPE_MAP}
 
-    id_a = str(me.get("profile_id", me.get("isim", "A")))
-    id_b = str(other.get("profile_id", other.get("isim", "B")))
-    pair_seed = ":".join(sorted([id_a, id_b]))
+    pair_seed = ":".join(pair_key)
 
     br = compute_compatibility_score(
         profile_a=profile_a,
@@ -433,7 +444,16 @@ def uyum_breakdown(me, other):
     skor = base + adj * scale
 
     skor = max(3, min(97, skor))
-    return int(round(skor)), br
+        result = (int(round(skor)), br)
+
+    # Cache'e yaz (büyümesin diye basit limit)
+    if len(cache) > 500:
+        cache.clear()
+    cache[pair_key] = result
+    st.session_state.compat_cache = cache
+
+    return result
+
 
 
 def eslesme_vitrini(me, tum_profiller, top_n=2, mid_n=2, low_n=1):
