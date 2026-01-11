@@ -7,3 +7,10 @@ sorular_backup.json
 # local-only
 results_log.jsonl.bak
 wallfit_app.py
+
+# local logs / personal data
+results_log.jsonl
+results_log.jsonl.bak
+.venv/
+__pycache__/
+.DS_Store
