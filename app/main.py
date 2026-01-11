@@ -498,7 +498,7 @@ def eslesme_vitrini(me, tum_profiller, top_n=2, mid_n=2, low_n=1):
 # App entrypoint
 # -------------------------
 def run():
-    st.set_page_config(page_title="Hayat Yolu Testi", page_icon="🔮", layout="centered")
+    st.set_page_config(page_title="Life Path Test", page_icon="🔮", layout="centered")
     ensure_session_defaults()
 
     # 1) Paylaşım linki kontrolü (SADECE BURADA)
@@ -513,7 +513,7 @@ def run():
             st.query_params.clear()
 
     # 2) Normal akış başlığı
-    st.title("🔮 Hayat Yolu Testi")
+    st.title("🔮 Life Path Test")
     st.caption("Seçim yap. Hikaye ilerlesin. En sonda ‘kader çizgini’ yorumlayayım.")
 
     debug_mode = st.session_state.debug_mode
