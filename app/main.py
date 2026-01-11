@@ -444,7 +444,7 @@ def uyum_breakdown(me, other):
     skor = base + adj * scale
 
     skor = max(3, min(97, skor))
-        result = (int(round(skor)), br)
+    result = (int(round(skor)), br)
 
     # Cache'e yaz (büyümesin diye basit limit)
     if len(cache) > 500:
