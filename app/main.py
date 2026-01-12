@@ -23,7 +23,24 @@ RESULTS_LOG_PATH = Path(__file__).parent / "results_log.jsonl"
 # -------------------------
 # Sorular: JSON -> internal format
 # -------------------------
-def parse_questions(raw):
+def pick_lang_text(val, lang: str):
+    if isinstance(val, dict):
+        return val.get(lang) or val.get("en") or val.get("tr") or ""
+    return val
+
+def pick_lang_text(value, lang: str):
+    """
+    value dict ise {"tr": "...", "en": "..."} gibi bekler.
+    String ise olduğu gibi döner.
+    """
+    if isinstance(value, dict):
+        return (value.get(lang) or value.get("tr") or value.get("en") or "").strip()
+    if value is None:
+        return ""
+    return str(value)
+
+
+def parse_questions(raw, lang: str):
     """
     JSON içeriğini şu formata çevirir:
     [
@@ -32,19 +49,25 @@ def parse_questions(raw):
     ]
     """
     sorular = []
-    for item in raw:
-        soru = item["soru"]
+    for item in (raw or []):
+        soru = pick_lang_text(item.get("soru"), lang)
+
         secenekler = []
-        for s in item["secenekler"]:
-            secenekler.append((s["yazi"], s["etki"], s.get("mini_sahne", "")))
+        for s in (item.get("secenekler") or []):
+            yazi = pick_lang_text(s.get("yazi"), lang)
+            etki = s.get("etki") or {}
+            mini_sahne = pick_lang_text(s.get("mini_sahne", ""), lang)
+            secenekler.append((yazi, etki, mini_sahne))
+
         sorular.append((soru, secenekler))
     return sorular
-
-
 SORULAR_RAW = load_json("questions.json")
-SORULAR = parse_questions(SORULAR_RAW)
+# Dil seçimi (TR/EN)
+if "lang" not in st.session_state:
+    st.session_state.lang = "tr"
+lang = st.session_state.lang
 
-
+SORULAR = parse_questions(SORULAR_RAW, lang)
 # -------------------------
 # Konfig / İçerik
 # -------------------------
