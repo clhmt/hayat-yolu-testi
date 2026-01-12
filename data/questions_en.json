@@ -1,0 +1,217 @@
+[
+  {
+    "soru": "In the middle of the night, your phone vibrates. On the screen there's a single word: “CHOOSE.” The sender is unknown.",
+    "secenekler": [
+      {
+        "yazi": "I silence it. I’ll think more clearly in the morning.",
+        "etki": { "kontrol": 3 },
+        "mini_sahne": "No big decisions at night. Control first, move after."
+      },
+      {
+        "yazi": "I investigate the number. This message didn’t come for nothing.",
+        "etki": { "merak": 3 },
+        "mini_sahne": "You follow the trail. Small details open big doors."
+      },
+      {
+        "yazi": "I reply: “Choose what?”",
+        "etki": { "cesaret": 3 },
+        "mini_sahne": "Waiting isn’t your style. You make contact."
+      },
+      {
+        "yazi": "I call. If there’s someone on the other side, they shouldn’t be alone.",
+        "etki": { "empati": 3 },
+        "mini_sahne": "Human first. Even in uncertainty."
+      }
+    ]
+  },
+  {
+    "soru": "The next morning, while walking down the street, you notice an old, shiny key on the ground.",
+    "secenekler": [
+      {
+        "yazi": "I put it in my pocket. You never know when it will be useful.",
+        "etki": { "kontrol": 2 },
+        "mini_sahne": "You gather resources. Thinking ahead."
+      },
+      {
+        "yazi": "I look around. What could it belong to?",
+        "etki": { "merak": 3 },
+        "mini_sahne": "Every scene contains a clue."
+      },
+      {
+        "yazi": "I check nearby doors. I won’t know until I try.",
+        "etki": { "cesaret": 2 },
+        "mini_sahne": "Risk is sometimes the shortest route."
+      },
+      {
+        "yazi": "I ask people nearby if it belongs to someone.",
+        "etki": { "empati": 2 },
+        "mini_sahne": "Maybe the key belongs to a person, not a place."
+      }
+    ]
+  },
+  {
+    "soru": "You’re alone at a café. The waiter leaves a small note: “Today, you can change one habit.”",
+    "secenekler": [
+      {
+        "yazi": "I order the usual. Change is overrated.",
+        "etki": { "kontrol": 3 },
+        "mini_sahne": "Stability keeps you safe."
+      },
+      {
+        "yazi": "I choose something I’ve never tried from the menu.",
+        "etki": { "merak": 2 },
+        "mini_sahne": "Break the routine, open the mind."
+      },
+      {
+        "yazi": "I turn off my phone. I challenge myself.",
+        "etki": { "cesaret": 2 },
+        "mini_sahne": "You chose the hard option."
+      },
+      {
+        "yazi": "I greet the lonely person at the next table.",
+        "etki": { "empati": 2 },
+        "mini_sahne": "Sometimes change begins with a single glance."
+      }
+    ]
+  },
+  {
+    "soru": "At night, in a dream, you stand at a fork in the road. The left is foggy, the right is bright. No one is watching you.",
+    "secenekler": [
+      {
+        "yazi": "I go toward the light. The familiar path is safer.",
+        "etki": { "kontrol": 2 },
+        "mini_sahne": "You chose what’s predictable."
+      },
+      {
+        "yazi": "I step into the fog. Something is there.",
+        "etki": { "merak": 3 },
+        "mini_sahne": "The call of the unknown is strong."
+      },
+      {
+        "yazi": "I run without thinking.",
+        "etki": { "cesaret": 3 },
+        "mini_sahne": "The moment of decision doesn’t last long."
+      },
+      {
+        "yazi": "I call someone. I don’t want to walk this road alone.",
+        "etki": { "empati": 2 },
+        "mini_sahne": "The road feels lighter when shared."
+      }
+    ]
+  },
+  {
+    "soru": "Someone tells you, “You think too much.” What’s the first thing that crosses your mind?",
+    "secenekler": [
+      {
+        "yazi": "They might be right. I should organize my thoughts.",
+        "etki": { "kontrol": 2 },
+        "mini_sahne": "You calm the mind through structure."
+      },
+      {
+        "yazi": "Thinking helps me form new connections.",
+        "etki": { "merak": 3 },
+        "mini_sahne": "Your mind is constantly exploring."
+      },
+      {
+        "yazi": "Thinking isn’t enough. It’s time to move.",
+        "etki": { "cesaret": 2 },
+        "mini_sahne": "Action relaxes you."
+      },
+      {
+        "yazi": "Maybe they don’t really understand me.",
+        "etki": { "empati": 2 },
+        "mini_sahne": "You feel the need to connect."
+      }
+    ]
+  },
+  {
+    "soru": "Tasks pile up during the day. Time is tight.",
+    "secenekler": [
+      {
+        "yazi": "I make a priority list and go step by step.",
+        "etki": { "kontrol": 3 },
+        "mini_sahne": "Control is back."
+      },
+      {
+        "yazi": "I dive into the most critical one and finish fast.",
+        "etki": { "cesaret": 2 },
+        "mini_sahne": "Hardest part first."
+      }
+    ]
+  },
+  {
+    "soru": "A friend has gone quiet. You sense something is wrong.",
+    "secenekler": [
+      {
+        "yazi": "I go to them and listen.",
+        "etki": { "empati": 3 },
+        "mini_sahne": "Your presence was enough."
+      },
+      {
+        "yazi": "I try to clarify what the problem is.",
+        "etki": { "kontrol": 2 },
+        "mini_sahne": "You want to reduce uncertainty."
+      }
+    ]
+  },
+  {
+    "soru": "A risky but exciting opportunity appears in front of you.",
+    "secenekler": [
+      {
+        "yazi": "I run a small test first.",
+        "etki": { "kontrol": 2, "merak": 1 },
+        "mini_sahne": "Low-risk exploration."
+      },
+      {
+        "yazi": "I jump in fast. Waiting isn’t for me.",
+        "etki": { "cesaret": 3 },
+        "mini_sahne": "You made the move."
+      }
+    ]
+  },
+  {
+    "soru": "You’re criticized about something.",
+    "secenekler": [
+      {
+        "yazi": "I think about what I can improve.",
+        "etki": { "kontrol": 2, "merak": 1 },
+        "mini_sahne": "You turned criticism into data."
+      },
+      {
+        "yazi": "I notice the emotion, calm down, and talk.",
+        "etki": { "empati": 2 },
+        "mini_sahne": "The tension dropped."
+      }
+    ]
+  },
+  {
+    "soru": "There’s an awkward silence in a group.",
+    "secenekler": [
+      {
+        "yazi": "I ask an intriguing question.",
+        "etki": { "merak": 2, "empati": 1 },
+        "mini_sahne": "The ice melted."
+      },
+      {
+        "yazi": "I speak up and start the flow.",
+        "etki": { "cesaret": 2, "kontrol": 1 },
+        "mini_sahne": "You took the lead."
+      }
+    ]
+  },
+  {
+    "soru": "You have a day that’s completely free.",
+    "secenekler": [
+      {
+        "yazi": "I try something new.",
+        "etki": { "merak": 2, "cesaret": 1 },
+        "mini_sahne": "You stepped outside the routine."
+      },
+      {
+        "yazi": "I organize things and catch up on gaps.",
+        "etki": { "kontrol": 3 },
+        "mini_sahne": "Your mind feels lighter."
+      }
+    ]
+  }
+]

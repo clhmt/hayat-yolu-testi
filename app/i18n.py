@@ -10,6 +10,12 @@ TEXT = {
         "debug": "Debug modu",
         "start_over": "Baştan Başla",
         "download_result": "Sonucu indir (JSON)",
+        "name_optional": "Adın ne? (opsiyonel)",
+        "show_name_in_matches": "Eşleşme listesinde ismim görünsün",
+        "astro_mode": "Astro modu (burç atmosferi ekle)",
+        "astro_off": "Astro modu kapalı: Açarsan burç atmosferini de eklerim.",
+
+        
     },
     "en": {
         "page_title": "Life Path Test",
@@ -20,6 +26,11 @@ TEXT = {
         "debug": "Debug mode",
         "start_over": "Start Over",
         "download_result": "Download result (JSON)",
+        "name_optional": "What's your name? (optional)",
+        "show_name_in_matches": "Show my name in the match list",
+        "astro_mode": "Astro mode (adds zodiac vibe)",
+        "astro_off": "Astro mode is off. Turn it on to add zodiac atmosphere.",
+
     }
 }
 
