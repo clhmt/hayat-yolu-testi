@@ -524,6 +524,28 @@ def run():
     st.set_page_config(page_title="Life Path Test", page_icon="🔮", layout="centered")
     ensure_session_defaults()
 
+    # -------------------------
+    # Language (TR/EN)
+    # -------------------------
+    if "lang" not in st.session_state:
+        st.session_state.lang = "tr"
+
+    lang_choice = st.sidebar.radio(
+        "Language / Dil",
+        ["TR", "EN"],
+        index=0 if st.session_state.lang == "tr" else 1
+    )
+    new_lang = "tr" if lang_choice == "TR" else "en"
+    if new_lang != st.session_state.lang:
+        st.session_state.lang = new_lang
+        st.rerun()
+
+    lang = st.session_state.lang
+
+    # Soruları seçilen dile göre yeniden hazırla
+    global SORULAR
+    SORULAR = parse_questions(SORULAR_RAW, lang)
+
     # 1) Paylaşım linki kontrolü (SADECE BURADA)
     qid = st.query_params.get("id", None)
     if qid:
