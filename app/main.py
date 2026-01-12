@@ -215,8 +215,8 @@ def dogum_tarihi_secici(varsayilan: date) -> date:
 
 
 def paylasim_sayfasi_goster(profil: dict):
-    st.title("🔮 Hayat Yolu Testi")
-    st.caption("Paylaşılan sonuç görüntüleniyor.")
+    st.title("🔮 Life Path Test")
+    st.caption("Showing a shared result.")
 
     isim = (profil.get("isim") or "").strip() or "Yolcu"
     burc = profil.get("burc") or "—"
@@ -226,7 +226,7 @@ def paylasim_sayfasi_goster(profil: dict):
     a = ARSHETIPLER.get(baskin, {"ad": baskin, "ikon": ""})
     b = ARSHETIPLER.get(ikincil, {"ad": ikincil, "ikon": ""})
 
-    st.subheader(f"📌 {isim} için Kader Çizgin")
+    st.subheader(f"📌 {isim}'s Life Path")
     st.success(
         f"Baskın yönün: **{a['ad']} {a.get('ikon','')}**  |  "
         f"Destek yönün: **{b['ad']} {b.get('ikon','')}**"
@@ -245,13 +245,13 @@ def paylasim_sayfasi_goster(profil: dict):
     with st.expander("🎬 Seçim Günlüğü", expanded=False):
         gunluk = profil.get("gunluk") or []
         if not gunluk:
-            st.caption("Günlük yok.")
+            st.caption("No log yet.")
         else:
             for i, satir in enumerate(gunluk, 1):
                 st.write(f"{i}. {satir}")
 
     st.divider()
-    if st.button("✅ Testi ben de çözmek istiyorum"):
+    if st.button("✅ I want to take the test too"):
         st.query_params.clear()
         st.rerun()
 
@@ -514,7 +514,7 @@ def run():
 
     # 2) Normal akış başlığı
     st.title("🔮 Life Path Test")
-    st.caption("Seçim yap. Hikaye ilerlesin. En sonda ‘kader çizgini’ yorumlayayım.")
+    st.caption("Make choices. Let the story unfold. At the end, I'll read your path.")
 
     debug_mode = st.session_state.debug_mode
 
@@ -557,7 +557,7 @@ def run():
     # 5) Reset butonu
     c1, c2 = st.columns([1, 1])
     with c1:
-        if st.button("🔁 Sıfırla / Yeniden Başla", key="reset"):
+        if st.button("🔁 Reset / Start Over", key="reset"):
             reset_game()
             st.rerun()
     with c2:
@@ -565,7 +565,7 @@ def run():
 
     # 6) İlerleme
     st.progress(min(st.session_state.adim / len(SORULAR), 1.0))
-    st.write(f"İlerleme: **{st.session_state.adim}/{len(SORULAR)}**")
+    st.write(f"Progress: **{st.session_state.adim}/{len(SORULAR)}**")
     st.divider()
 
     # 7) Soru akışı
@@ -580,7 +580,7 @@ def run():
     # 8) Sonuç ekranı
     else:
         isim = (st.session_state.get("isim") or "").strip() or "Yolcu"
-        st.subheader(f"📌 {isim} için Kader Çizgin")
+        st.subheader(f"📌 {isim}'s Life Path")
 
         baskin, ikincil = baskin_ve_ikincil(st.session_state.puan)
         a = ARSHETIPLER[baskin]
@@ -613,14 +613,14 @@ def run():
         st.markdown(kehanet_metni(baskin, ikincil))
 
         st.divider()
-        st.subheader("🔗 Paylaş")
+        st.subheader("🔗 Share")
         colA, colB = st.columns([1, 2])
         with colA:
-            if st.button("Link oluştur", key="btn_share_link"):
+            if st.button("Create link", key="btn_share_link"):
                 st.query_params["id"] = profil.get("profile_id")
                 st.rerun()
         with colB:
-            st.caption("Butona basınca URL güncellenecek. Adres çubuğundaki linki kopyalayıp paylaş.")
+            st.caption("After clicking, the URL will update. Copy the link from the address bar and share it.")
 
         with st.expander("📊 Puan Özeti", expanded=False):
             puan_tablosu = []
@@ -629,23 +629,23 @@ def run():
                 puan_tablosu.append({"Arketip": f"{ar['ad']} {ar.get('ikon','')}", "Puan": v})
             st.table(puan_tablosu)
 
-        st.subheader("🧍 Senin Profilin")
+        st.subheader("🧍 Your Profile")
         with st.container(border=True):
-            st.markdown(f"### {isim} (Sen)")
-            st.write(f"**Baskın:** {a['ad']} {a.get('ikon','')}  |  **Destek:** {b['ad']} {b.get('ikon','')}")
-            st.write(f"**Burç:** {st.session_state.get('burc') or '—'}")
+            st.markdown(f"### {isim} (You)")
+            st.write(f"**Primary:** {a['ad']} {a.get('ikon','')} | **Secondary:** {b['ad']} {b.get('ikon','')}")
+            st.write(f"**Sign:** {st.session_state.get('burc') or '—'}")
 
         st.divider()
-        st.subheader("🧩 Benim gibi yolcular")
+        st.subheader("🧩 Travelers like you")
 
         tum = jsonl_oku(limit=80)
         yakinlar = eslesme_vitrini(profil, tum, top_n=2, mid_n=2, low_n=1)
 
-        st.subheader("💘 En iyi eşleşmelerin")
+        st.subheader("💘 Your best matches")
         top2 = yakinlar[:2]
 
         if not top2:
-            st.caption("Henüz yeterli veri yok.")
+            st.caption("Not enough data yet.")
         else:
             for rank, (sk, br, p) in enumerate(top2, 1):
                 isim2 = (p.get("isim") or "").strip()
@@ -680,7 +680,7 @@ def run():
 
         top2_ids = {p.get("profile_id") for (_, _, p) in top2 if p.get("profile_id")}
 
-        st.subheader("🎯 Diğer eşleşmeler")
+        st.subheader("🎯 Other matches")
         sirano = 1
         for (sk, br, p) in yakinlar:
             pid = p.get("profile_id")
