@@ -1,317 +1,215 @@
 [
   {
-    "soru": {
-      "tr": "Gecenin bir yarısı telefonun titriyor. Ekranda tek bir kelime var: “SEÇ.” Kimden geldiği belli değil.",
-      "en": "Gecenin bir yarısı telefonun titriyor. Ekranda tek bir kelime var: “SEÇ.” Kimden geldiği belli değil."
-    },
+    "soru": "Gecenin bir yarısı telefonun titriyor. Ekranda tek bir kelime var: “SEÇ.” Kimden geldiği belli değil.",
     "secenekler": [
       {
         "yazi": "Sessize alırım. Sabah daha net düşünürüm.",
-        "etki": {
-          "kontrol": 3
-        },
+        "etki": { "kontrol": 3 },
         "mini_sahne": "Gece karar verilmez. Önce kontrol, sonra hamle."
       },
       {
         "yazi": "Numarayı araştırırım. Bu mesaj boşuna gelmedi.",
-        "etki": {
-          "merak": 3
-        },
+        "etki": { "merak": 3 },
         "mini_sahne": "İz sürüyorsun. Küçük detaylar büyük kapılar açar."
       },
       {
         "yazi": "Cevap yazarım: “Ne seçimi?”",
-        "etki": {
-          "cesaret": 3
-        },
+        "etki": { "cesaret": 3 },
         "mini_sahne": "Beklemek sana göre değil. Temasa geçtin."
       },
       {
         "yazi": "Ararım. Karşı tarafta biri varsa yalnız kalmasın.",
-        "etki": {
-          "empati": 3
-        },
+        "etki": { "empati": 3 },
         "mini_sahne": "Önce insan. Belirsizlikte bile."
       }
     ]
   },
   {
-    "soru": {
-      "tr": "Ertesi sabah yolda yürürken yerde eski, parlak bir anahtar görüyorsun.",
-      "en": "Ertesi sabah yolda yürürken yerde eski, parlak bir anahtar görüyorsun."
-    },
+    "soru": "Ertesi sabah yolda yürürken yerde eski, parlak bir anahtar görüyorsun.",
     "secenekler": [
       {
         "yazi": "Cebime koyarım. Ne zaman lazım olacağı belli olmaz.",
-        "etki": {
-          "kontrol": 2
-        },
+        "etki": { "kontrol": 2 },
         "mini_sahne": "Kaynak topluyorsun. Geleceği düşünerek."
       },
       {
         "yazi": "Etrafı incelerim. Neye ait olabilir?",
-        "etki": {
-          "merak": 3
-        },
+        "etki": { "merak": 3 },
         "mini_sahne": "Her sahne bir ipucu barındırır."
       },
       {
         "yazi": "Yakındaki kapılara bakarım. Denemeden bilemem.",
-        "etki": {
-          "cesaret": 2
-        },
+        "etki": { "cesaret": 2 },
         "mini_sahne": "Risk bazen en kısa yoldur."
       },
       {
         "yazi": "Birine ait mi diye çevredekilere sorarım.",
-        "etki": {
-          "empati": 2
-        },
+        "etki": { "empati": 2 },
         "mini_sahne": "Belki de anahtar birine aittir, bir yere değil."
       }
     ]
   },
   {
-    "soru": {
-      "tr": "Bir kafede tek başınasın. Garson masaya küçük bir not bırakıyor: “Bugün tek bir alışkanlığını değiştirebilirsin.”",
-      "en": "Bir kafede tek başınasın. Garson masaya küçük bir not bırakıyor: “Bugün tek bir alışkanlığını değiştirebilirsin.”"
-    },
+    "soru": "Bir kafede tek başınasın. Garson masaya küçük bir not bırakıyor: “Bugün tek bir alışkanlığını değiştirebilirsin.”",
     "secenekler": [
       {
         "yazi": "Her zamanki siparişi veririm. Değişim abartılıyor.",
-        "etki": {
-          "kontrol": 3
-        },
+        "etki": { "kontrol": 3 },
         "mini_sahne": "İstikrar seni güvende tutar."
       },
       {
         "yazi": "Menüde hiç denemediğim bir şeyi seçerim.",
-        "etki": {
-          "merak": 2
-        },
+        "etki": { "merak": 2 },
         "mini_sahne": "Rutin kırılırsa zihin açılır."
       },
       {
         "yazi": "Telefonu kapatırım. Kendime meydan okurum.",
-        "etki": {
-          "cesaret": 2
-        },
+        "etki": { "cesaret": 2 },
         "mini_sahne": "Zor olanı seçtin."
       },
       {
         "yazi": "Yan masadaki yalnız kişiye bir selam veririm.",
-        "etki": {
-          "empati": 2
-        },
+        "etki": { "empati": 2 },
         "mini_sahne": "Bazen değişim bir bakışla başlar."
       }
     ]
   },
   {
-    "soru": {
-      "tr": "Gece rüyanda bir yol ayrımındasın. Sol taraf sisli, sağ taraf aydınlık. Kimse seni izlemiyor.",
-      "en": "Gece rüyanda bir yol ayrımındasın. Sol taraf sisli, sağ taraf aydınlık. Kimse seni izlemiyor."
-    },
+    "soru": "Gece rüyanda bir yol ayrımındasın. Sol taraf sisli, sağ taraf aydınlık. Kimse seni izlemiyor.",
     "secenekler": [
       {
         "yazi": "Işığa yönelirim. Bildiğim yol daha güvenli.",
-        "etki": {
-          "kontrol": 2
-        },
+        "etki": { "kontrol": 2 },
         "mini_sahne": "Öngörülebilir olanı seçtin."
       },
       {
         "yazi": "Sise girerim. Orada bir şey var.",
-        "etki": {
-          "merak": 3
-        },
+        "etki": { "merak": 3 },
         "mini_sahne": "Bilinmeyenin çağrısı güçlü."
       },
       {
         "yazi": "Hiç düşünmeden koşarım.",
-        "etki": {
-          "cesaret": 3
-        },
+        "etki": { "cesaret": 3 },
         "mini_sahne": "Karar anı uzamaz."
       },
       {
         "yazi": "Birini çağırırım. Yolu yalnız yürümek istemem.",
-        "etki": {
-          "empati": 2
-        },
+        "etki": { "empati": 2 },
         "mini_sahne": "Yol paylaşınca hafifler."
       }
     ]
   },
   {
-    "soru": {
-      "tr": "Birisi sana “Çok düşünüyorsun” diyor. İçinden geçen ilk şey ne?",
-      "en": "Birisi sana “Çok düşünüyorsun” diyor. İçinden geçen ilk şey ne?"
-    },
+    "soru": "Birisi sana “Çok düşünüyorsun” diyor. İçinden geçen ilk şey ne?",
     "secenekler": [
       {
         "yazi": "Haklı olabilir. Düşünceyi düzene sokmalıyım.",
-        "etki": {
-          "kontrol": 2
-        },
+        "etki": { "kontrol": 2 },
         "mini_sahne": "Zihni sistemle sakinleştiriyorsun."
       },
       {
         "yazi": "Düşünmek yeni bağlantılar kurmamı sağlıyor.",
-        "etki": {
-          "merak": 3
-        },
+        "etki": { "merak": 3 },
         "mini_sahne": "Zihnin sürekli keşifte."
       },
       {
         "yazi": "Düşünmek yetmez. Hareket zamanı.",
-        "etki": {
-          "cesaret": 2
-        },
+        "etki": { "cesaret": 2 },
         "mini_sahne": "Aksiyon seni rahatlatır."
       },
       {
         "yazi": "Belki de beni tam anlamıyorlar.",
-        "etki": {
-          "empati": 2
-        },
+        "etki": { "empati": 2 },
         "mini_sahne": "Bağ kurma ihtiyacı hissediyorsun."
       }
     ]
   },
   {
-    "soru": {
-      "tr": "Gün içinde işler üst üste geliyor. Zaman dar.",
-      "en": "Gün içinde işler üst üste geliyor. Zaman dar."
-    },
+    "soru": "Gün içinde işler üst üste geliyor. Zaman dar.",
     "secenekler": [
       {
         "yazi": "Öncelik listesi çıkarır, sırayla ilerlerim.",
-        "etki": {
-          "kontrol": 3
-        },
+        "etki": { "kontrol": 3 },
         "mini_sahne": "Kontrol geri geldi."
       },
       {
         "yazi": "En kritik olana dalar, hızla bitiririm.",
-        "etki": {
-          "cesaret": 2
-        },
+        "etki": { "cesaret": 2 },
         "mini_sahne": "En zor parça önce."
       }
     ]
   },
   {
-    "soru": {
-      "tr": "Bir arkadaşın sessizleşmiş. Bir şeylerin yolunda olmadığını hissediyorsun.",
-      "en": "Bir arkadaşın sessizleşmiş. Bir şeylerin yolunda olmadığını hissediyorsun."
-    },
+    "soru": "Bir arkadaşın sessizleşmiş. Bir şeylerin yolunda olmadığını hissediyorsun.",
     "secenekler": [
       {
         "yazi": "Yanına gider, dinlerim.",
-        "etki": {
-          "empati": 3
-        },
+        "etki": { "empati": 3 },
         "mini_sahne": "Varlığın yeterli oldu."
       },
       {
         "yazi": "Sorunun ne olduğunu netleştirmeye çalışırım.",
-        "etki": {
-          "kontrol": 2
-        },
+        "etki": { "kontrol": 2 },
         "mini_sahne": "Belirsizliği azaltmak istiyorsun."
       }
     ]
   },
   {
-    "soru": {
-      "tr": "Önüne riskli ama heyecan verici bir fırsat çıkıyor.",
-      "en": "Önüne riskli ama heyecan verici bir fırsat çıkıyor."
-    },
+    "soru": "Önüne riskli ama heyecan verici bir fırsat çıkıyor.",
     "secenekler": [
       {
         "yazi": "Küçük bir deneme yaparım.",
-        "etki": {
-          "kontrol": 2,
-          "merak": 1
-        },
+        "etki": { "kontrol": 2, "merak": 1 },
         "mini_sahne": "Risksiz keşif."
       },
       {
         "yazi": "Hızlı girerim. Beklemek bana göre değil.",
-        "etki": {
-          "cesaret": 3
-        },
+        "etki": { "cesaret": 3 },
         "mini_sahne": "Hamle yaptın."
       }
     ]
   },
   {
-    "soru": {
-      "tr": "Bir konuda eleştirildin.",
-      "en": "Bir konuda eleştirildin."
-    },
+    "soru": "Bir konuda eleştirildin.",
     "secenekler": [
       {
         "yazi": "Neyi geliştirebilirim diye düşünürüm.",
-        "etki": {
-          "kontrol": 2,
-          "merak": 1
-        },
+        "etki": { "kontrol": 2, "merak": 1 },
         "mini_sahne": "Eleştiriyi veriye çevirdin."
       },
       {
         "yazi": "Duyguyu fark eder, sakinleşip konuşurum.",
-        "etki": {
-          "empati": 2
-        },
+        "etki": { "empati": 2 },
         "mini_sahne": "Tansiyon düştü."
       }
     ]
   },
   {
-    "soru": {
-      "tr": "Bir ortamda garip bir sessizlik var.",
-      "en": "Bir ortamda garip bir sessizlik var."
-    },
+    "soru": "Bir ortamda garip bir sessizlik var.",
     "secenekler": [
       {
         "yazi": "Merak uyandıran bir soru sorarım.",
-        "etki": {
-          "merak": 2,
-          "empati": 1
-        },
+        "etki": { "merak": 2, "empati": 1 },
         "mini_sahne": "Buzlar eridi."
       },
       {
         "yazi": "Söz alır, akışı başlatırım.",
-        "etki": {
-          "cesaret": 2,
-          "kontrol": 1
-        },
+        "etki": { "cesaret": 2, "kontrol": 1 },
         "mini_sahne": "Liderliği aldın."
       }
     ]
   },
   {
-    "soru": {
-      "tr": "Bir gün tamamen boş.",
-      "en": "Bir gün tamamen boş."
-    },
+    "soru": "Bir gün tamamen boş.",
     "secenekler": [
       {
         "yazi": "Yeni bir şey denerim.",
-        "etki": {
-          "merak": 2,
-          "cesaret": 1
-        },
+        "etki": { "merak": 2, "cesaret": 1 },
         "mini_sahne": "Rutin dışına çıktın."
       },
       {
         "yazi": "Düzen kurar, eksikleri toparlarım.",
-        "etki": {
-          "kontrol": 3
-        },
+        "etki": { "kontrol": 3 },
         "mini_sahne": "Zihnin ferahladı."
       }
     ]
