@@ -14,3 +14,6 @@ results_log.jsonl.bak
 .venv/
 __pycache__/
 .DS_Store
+
+# local backups
+_archive/backups/
