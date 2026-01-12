@@ -114,3 +114,30 @@ def sign_label(sign_key: str) -> str:
 
 def sign_keys():
     return [k for k, _ in SIGNS]
+
+UI_TEXT = {
+    "name_label": {
+        "tr": "Adın ne? (opsiyonel)",
+        "en": "Your name? (optional)",
+    },
+    "share_in_matches": {
+        "tr": "Eşleşme listesinde ismim görünsün",
+        "en": "Show my name in match list",
+    },
+    "astro_mode": {
+        "tr": "Astro modu (burç atmosferi ekle)",
+        "en": "Astro mode (add zodiac flavor)",
+    },
+    "astro_off_hint": {
+        "tr": "Astro modu kapalı: Açarsan burç atmosferini de eklerim.",
+        "en": "Astro mode is off: turn it on to add zodiac flavor.",
+    },
+}
+
+def ui(key: str, lang: str = "tr") -> str:
+    lang = (lang or "tr").lower()
+    item = UI_TEXT.get(key)
+    if not item:
+        return key
+    return item.get(lang) or item.get("tr") or next(iter(item.values()))
+

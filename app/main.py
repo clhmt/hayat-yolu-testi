@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from datetime import datetime, date
 import uuid
+from app.i18n import ui
+
 
 from app.compatibility import compute_compatibility_score
 from app.ui_components import render_match_card
@@ -28,16 +30,11 @@ def pick_lang_text(val, lang: str):
         return val.get(lang) or val.get("en") or val.get("tr") or ""
     return val
 
-def pick_lang_text(value, lang: str):
-    """
-    value dict ise {"tr": "...", "en": "..."} gibi bekler.
-    String ise olduğu gibi döner.
-    """
-    if isinstance(value, dict):
-        return (value.get(lang) or value.get("tr") or value.get("en") or "").strip()
-    if value is None:
-        return ""
-    return str(value)
+def pick_lang_text(x, lang: str) -> str:
+    """x string olabilir ya da {'tr':..., 'en':...} dict olabilir."""
+    if isinstance(x, dict):
+        return (x.get(lang) or x.get("tr") or x.get("en") or "")
+    return x or ""
 
 
 def parse_questions(raw, lang: str):
@@ -49,25 +46,33 @@ def parse_questions(raw, lang: str):
     ]
     """
     sorular = []
-    for item in (raw or []):
-        soru = pick_lang_text(item.get("soru"), lang)
-
+    for item in raw:
+        soru = pick_lang_text(item.get("soru", ""), lang)
         secenekler = []
-        for s in (item.get("secenekler") or []):
-            yazi = pick_lang_text(s.get("yazi"), lang)
-            etki = s.get("etki") or {}
-            mini_sahne = pick_lang_text(s.get("mini_sahne", ""), lang)
-            secenekler.append((yazi, etki, mini_sahne))
-
+        for s in item.get("secenekler", []):
+            secenekler.append((
+                pick_lang_text(s.get("yazi", ""), lang),
+                s.get("etki", {}),
+                pick_lang_text(s.get("mini_sahne", ""), lang),
+            ))
         sorular.append((soru, secenekler))
     return sorular
-SORULAR_RAW = load_json("questions.json")
-# Dil seçimi (TR/EN)
-if "lang" not in st.session_state:
-    st.session_state.lang = "tr"
-lang = st.session_state.lang
 
-SORULAR = parse_questions(SORULAR_RAW, lang)
+@st.cache_data(show_spinner=False)
+def load_questions(lang: str):
+    # repo kökü: app/main.py -> app -> repo_root
+    repo_root = Path(__file__).resolve().parents[1]
+    path = repo_root / "data" / f"questions_{lang}.json"
+
+    # fallback: eski tek dosya düzeni varsa
+    if not path.exists():
+        path = repo_root / "data" / "questions.json"
+
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    return parse_questions(raw, lang)
+
+
+
 # -------------------------
 # Konfig / İçerik
 # -------------------------
@@ -523,28 +528,13 @@ def eslesme_vitrini(me, tum_profiller, top_n=2, mid_n=2, low_n=1):
 def run():
     st.set_page_config(page_title="Life Path Test", page_icon="🔮", layout="centered")
     ensure_session_defaults()
+        
+    # 0) Language selector (TR/EN)
+    lang = st.sidebar.radio("Language / Dil", ["tr", "en"], index=0, key="lang")
 
-    # -------------------------
-    # Language (TR/EN)
-    # -------------------------
-    if "lang" not in st.session_state:
-        st.session_state.lang = "tr"
+    # Load questions based on language (this must be AFTER lang is set)
+    SORULAR = load_questions(lang)
 
-    lang_choice = st.sidebar.radio(
-        "Language / Dil",
-        ["TR", "EN"],
-        index=0 if st.session_state.lang == "tr" else 1
-    )
-    new_lang = "tr" if lang_choice == "TR" else "en"
-    if new_lang != st.session_state.lang:
-        st.session_state.lang = new_lang
-        st.rerun()
-
-    lang = st.session_state.lang
-
-    # Soruları seçilen dile göre yeniden hazırla
-    global SORULAR
-    SORULAR = parse_questions(SORULAR_RAW, lang)
 
     # 1) Paylaşım linki kontrolü (SADECE BURADA)
     qid = st.query_params.get("id", None)
@@ -566,19 +556,19 @@ def run():
     # 3) İsim + paylaşım ayarı (adım 0'da)
     if st.session_state.adim == 0:
         st.session_state.isim = st.text_input(
-            "Adın ne? (opsiyonel)",
+            ui("name_label", lang),
             value=st.session_state.get("isim", "")
         ).strip()
 
         st.session_state.paylas = st.checkbox(
-            "Eşleşme listesinde ismim görünsün",
+            ui("share_in_matches", lang),
             value=st.session_state.get("paylas", False)
         )
 
     # 4) Astro modu (adım 0'da)
     if st.session_state.adim == 0:
         st.session_state.astro = st.checkbox(
-            "Astro modu (burç atmosferi ekle)",
+            ui("astro_mode", lang),
             value=st.session_state.get("astro", False)
         )
 
@@ -597,7 +587,7 @@ def run():
                 f"{BURC_TEMALARI.get(st.session_state.burc, '')}"
             )
         else:
-            st.info("Astro modu kapalı: Açarsan burç atmosferini de eklerim.")
+            st.info(ui("astro_off_hint", lang))
 
     # 5) Reset butonu
     c1, c2 = st.columns([1, 1])
