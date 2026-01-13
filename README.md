@@ -1,79 +1,41 @@
-# Life Path Test (Streamlit MVP)
+# Life Path Test (Streamlit MVP) – TR/EN
 
-Life Path Test is a small Streamlit-based web application designed as a learning-focused MVP rather than a finished or validated product.
+A small Streamlit web app built as a learning MVP: interactive questionnaire → archetype scoring → shareable result → lightweight logging.
 
-The project explores how a simple, interactive questionnaire can be structured, presented to users, and iterated over time using collected interaction data.
+## Live Demo
+- Streamlit Cloud: (paste your app link here)
 
----
+## What this is (and what it isn’t)
+This project is **not** a scientifically validated personality test.  
+It is a **product/engineering learning MVP**:
+- End-to-end user flow
+- JSON-driven content
+- Basic scoring + results
+- Shareable link flow
+- Data logging for iteration
 
-## Purpose of the Project
+## Features
+- TR/EN language option (sidebar)
+- JSON-driven questions (no hardcoding)
+- Session-based flow + scoring
+- Result page + share link (query param `?id=...`)
+- JSONL logging for later analysis
 
-The main goal of this project is not to provide accurate personality analysis or scientific results.
+## Project Structure
+- `streamlit_app.py` → Streamlit entrypoint
+- `app/` → application code (UI, scoring, storage, i18n)
+- `data/` → question sets (JSON)
+- `_archive/` → old notebooks/backups (non-production)
 
-Instead, it focuses on:
-- Building a complete but small-scale product
-- Understanding user flow from start to finish
-- Practicing how data can inform iteration decisions
-- Learning how to move from a static idea to an evolving product
-
-This project is intentionally scoped to remain simple and flexible.
-
----
-
-## How It Works
-
-- Questions are loaded dynamically from JSON files
-- Users answer a sequence of questions through a Streamlit interface
-- Responses are processed using basic scoring logic
-- A result profile is generated at the end of the session
-- Anonymous interaction data is stored for later analysis
-
-The structure allows questions and logic to be adjusted without changing the core application code.
-
----
-
-## Current Features
-
-- JSON-driven question system
-- Session-based questionnaire flow
-- Basic scoring and result generation
-- Lightweight data logging (JSONL)
-
----
-
-## Current Limitations
-
-- No scientific or psychological validation
-- Minimal error handling
-- Limited analytics and visualization
-- Simple UI focused on functionality over design
-
-These limitations are intentional and aligned with the project’s learning-first approach.
-
----
-
-## v2 Roadmap (In Progress)
-
-The next iteration focuses on moving from interaction to insight:
-
-- Session-level event logging
-- Structured data storage (SQLite)
-- Basic admin analytics page
-- Question-level drop-off analysis
-- Result distribution overview
-- Share link click tracking
-
----
-
-## Tech Stack
-
-- Python
-- Streamlit
-- JSON / JSONL
-- SQLite (planned)
-
----
-
-## Status
-
-Active – under continuous iteration as part of a broader AI product development learning process.
+## Question files
+Questions are loaded from JSON files under `data/`.
+Expected format:
+```json
+[
+  {
+    "soru": "...",
+    "secenekler": [
+      {"yazi": "...", "etki": {"merak": 2}, "mini_sahne": "..."}
+    ]
+  }
+]
