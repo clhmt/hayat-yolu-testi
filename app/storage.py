@@ -159,3 +159,18 @@ def append_unique_by_profile_id(path: Path, record: Dict[str, Any]) -> Tuple[boo
 
     append_jsonl(path, record)
     return True, pid
+
+import json
+from datetime import datetime
+from pathlib import Path
+
+def log_event(path: Path, event: dict) -> None:
+    """
+    Append-only JSONL event logger.
+    """
+    event = dict(event)
+    event["ts"] = datetime.now().isoformat(timespec="seconds")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(event, ensure_ascii=False) + "\n")
+

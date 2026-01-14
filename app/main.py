@@ -1,7 +1,6 @@
 # app/main.py
 import streamlit as st
 import random
-import json
 from pathlib import Path
 from datetime import datetime, date
 import uuid
@@ -9,28 +8,40 @@ import uuid
 from app.compatibility import compute_compatibility_score
 from app.ui_components import render_match_card
 from app.utils import load_json
-
 from app.storage import (
     append_unique_by_profile_id,
     ensure_unique_profile_id,
     find_by_profile_id,
     read_jsonl,
+    log_event,  # TEK KAYNAK
 )
 
-# Repo kökü: .../app/main.py -> parents[1] repo root
+# ------------------------------------------------------------
+# Streamlit kuralı: set_page_config dosyanın EN ÜSTÜNDE olmalı
+# ------------------------------------------------------------
+st.set_page_config(
+    page_title="IZ",
+    page_icon="🔮",
+    layout="centered",
+    initial_sidebar_state="expanded",
+    menu_items={"Get help": None, "Report a bug": None, "About": None},
+)
+
+# Repo root
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RESULTS_LOG_PATH = REPO_ROOT / "results_log.jsonl"
+EVENTS_LOG_PATH = REPO_ROOT / "events_log.jsonl"
 DATA_DIR = REPO_ROOT / "data"
 
 
 # -------------------------
-# I18N (tek dosyada, bağımsız)
+# I18N
 # -------------------------
 TEXT = {
     "tr": {
-        "page_title": "Hayat Yolu Testi",
-        "title": "🔮 Hayat Yolu Testi",
-        "subtitle": "Seçim yap. Hikaye ilerlesin. En sonda ‘kader çizgini’ yorumlayayım.",
+        "page_title": "IZ",
+        "title": "🔮 IZ",
+        "subtitle": "Seçim yap. Hikaye ilerlesin. En sonda ‘izini’ okuyayım.",
         "sidebar_title": "Ayarlar",
         "language": "Dil",
         "debug": "Debug modu",
@@ -46,7 +57,8 @@ TEXT = {
         "astro_off": "Astro modu kapalı: Açarsan burç atmosferini de eklerim.",
         "share_title": "🔗 Paylaş",
         "share_button": "Link oluştur",
-        "share_hint": "Butona basınca URL güncellenecek. Adres çubuğundaki linki kopyalayıp paylaş.",
+        # NOT: URL'yi artık otomatik değiştirmiyoruz. Linki aşağıdan kopyalatıyoruz.
+        "share_hint": "Linki aşağıdan kopyalayıp paylaş. (URL otomatik güncellenmez.)",
         "shared_caption": "Paylaşılan sonuç görüntüleniyor.",
         "shared_not_found": "Bu id ile kayıt bulunamadı. Yeni test başlatılıyor.",
         "take_test_too": "✅ Testi ben de çözmek istiyorum",
@@ -66,14 +78,12 @@ TEXT = {
         "report_copy": "📋 Raporu Kopyala",
         "copy_hint": "Kopyala (Cmd/Ctrl + C):",
         "journal_scene": "🎬 Seçim Günlüğün (sahne sahne)",
-        "showing_shared": "Paylaşılan sonuç görüntüleniyor.",
-        "life_path_for": "📌 {name} için Kader Çizgin",
-        "life_path_for_en": "📌 {name}'s Life Path",
+        "life_path_for": "📌 {name} için İz Okuması",
     },
     "en": {
-        "page_title": "Life Path Test",
-        "title": "🔮 Life Path Test",
-        "subtitle": "Make choices. Let the story unfold. At the end, I’ll read your path.",
+        "page_title": "IZ",
+        "title": "🔮 IZ",
+        "subtitle": "Make choices. Let the story unfold. At the end, I’ll read your trace.",
         "sidebar_title": "Settings",
         "language": "Language",
         "debug": "Debug mode",
@@ -89,7 +99,7 @@ TEXT = {
         "astro_off": "Astro mode is off. Turn it on to add zodiac flavor.",
         "share_title": "🔗 Share",
         "share_button": "Create link",
-        "share_hint": "After clicking, the URL will update. Copy the link from the address bar and share it.",
+        "share_hint": "Copy the link below and share it. (URL won’t auto-update.)",
         "shared_caption": "Showing a shared result.",
         "shared_not_found": "No record found for this id. Starting a new test.",
         "take_test_too": "✅ I want to take the test too",
@@ -109,9 +119,7 @@ TEXT = {
         "report_copy": "📋 Copy Report",
         "copy_hint": "Copy (Cmd/Ctrl + C):",
         "journal_scene": "🎬 Your choice log (scene by scene)",
-        "showing_shared": "Showing a shared result.",
-        "life_path_for": "📌 {name}'s Life Path",
-        "life_path_for_en": "📌 {name}'s Life Path",
+        "life_path_for": "📌 {name}'s Trace Reading",
     },
 }
 
@@ -120,25 +128,19 @@ MONTHS = {
     "en": ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
 }
 
+
 def t(lang: str, key: str) -> str:
     lang = lang if lang in TEXT else "tr"
     return TEXT[lang].get(key, TEXT["tr"].get(key, key))
 
 
 # -------------------------
-# Sorular: JSON -> internal format
+# Questions
 # -------------------------
 def parse_questions(raw):
-    """
-    JSON içeriğini şu formata çevirir:
-    [
-      (question, [(text, effect_dict, mini_scene), ...]),
-      ...
-    ]
-    """
     questions = []
     for item in raw:
-        question = item.get("soru") or item.get("question")  # tolerans
+        question = item.get("soru") or item.get("question")
         opts = []
         for s in item.get("secenekler", item.get("options", [])):
             text = s.get("yazi") or s.get("text")
@@ -152,13 +154,15 @@ def parse_questions(raw):
 @st.cache_data(show_spinner=False)
 def get_questions(lang: str):
     lang = lang if lang in ("tr", "en") else "tr"
-    path = DATA_DIR / ("questions_en.json" if lang == "en" else "questions_tr.json")
+    primary = DATA_DIR / ("questions_en.json" if lang == "en" else "questions_tr.json")
+    fallback = DATA_DIR / "questions.json"
+    path = primary if primary.exists() else fallback
     raw = load_json(str(path))
     return parse_questions(raw)
 
 
 # -------------------------
-# Konfig / İçerik
+# Content
 # -------------------------
 ARSHETIPLER = {
     "merak": {
@@ -199,30 +203,18 @@ ARSHETIPLER = {
     },
 }
 
-# Compatibility motorunun beklediği anahtarlar
-ARCHETYPE_MAP = {
-    "merak": "kasif",
-    "cesaret": "savasci",
-    "kontrol": "stratejist",
-    "empati": "sifaci",
-}
+ARCHETYPE_MAP = {"merak": "kasif", "cesaret": "savasci", "kontrol": "stratejist", "empati": "sifaci"}
 
 UYUM_PROFILI = {
-    "merak":  {"iyi": ["empati", "kontrol"], "zor": ["cesaret"]},
-    "cesaret":{"iyi": ["kontrol", "merak"],  "zor": ["empati"]},
-    "kontrol":{"iyi": ["cesaret", "empati"], "zor": ["merak"]},
+    "merak": {"iyi": ["empati", "kontrol"], "zor": ["cesaret"]},
+    "cesaret": {"iyi": ["kontrol", "merak"], "zor": ["empati"]},
+    "kontrol": {"iyi": ["cesaret", "empati"], "zor": ["merak"]},
     "empati": {"iyi": ["merak", "kontrol"], "zor": ["cesaret"]},
 }
 
-
-# -------------------------
-# Astro atmosferi
-# -------------------------
 SIGNS_TR = ["Koç","Boğa","İkizler","Yengeç","Aslan","Başak","Terazi","Akrep","Yay","Oğlak","Kova","Balık"]
 SIGNS_EN = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"]
-
 SIGN_MAP_TR_EN = dict(zip(SIGNS_TR, SIGNS_EN))
-SIGN_MAP_EN_TR = dict(zip(SIGNS_EN, SIGNS_TR))
 
 BURC_TEMALARI_TR = {
     "Koç": "Hız ve hamle haftası: cesaret tetikte, sabırsızlığa dikkat.",
@@ -238,7 +230,6 @@ BURC_TEMALARI_TR = {
     "Kova": "Farklı düşün: kalıpları kır, kopukluk yaratma.",
     "Balık": "Sezgi ve hayal: ilham yüksek, gerçeklikten kaçma.",
 }
-
 BURC_TEMALARI_EN = {
     "Aries": "Speed and action week: courage is up, watch impatience.",
     "Taurus": "Stability and safety: slow, steady progress wins.",
@@ -254,9 +245,9 @@ BURC_TEMALARI_EN = {
     "Pisces": "Intuition and imagination: inspiration high, don’t escape reality.",
 }
 
+
 def burc_hesapla(d: date, lang: str) -> str:
     m, g = d.month, d.day
-    # Turkish sign calculation (original), then map if EN
     if (m == 3 and g >= 21) or (m == 4 and g <= 19): s = "Koç"
     elif (m == 4 and g >= 20) or (m == 5 and g <= 20): s = "Boğa"
     elif (m == 5 and g >= 21) or (m == 6 and g <= 20): s = "İkizler"
@@ -302,6 +293,15 @@ def ensure_session_defaults():
         st.session_state.profile_id = str(uuid.uuid4())
     if "compat_cache" not in st.session_state:
         st.session_state.compat_cache = {}
+    if "session_id" not in st.session_state:
+        st.session_state.session_id = str(uuid.uuid4())
+    if "event_started" not in st.session_state:
+        st.session_state.event_started = False
+    if "debug_pinged" not in st.session_state:
+        st.session_state.debug_pinged = False
+    if "tunnel_base" not in st.session_state:
+        st.session_state.tunnel_base = ""
+
 
 def reset_game():
     st.session_state.puan = {k: 0 for k in ARSHETIPLER.keys()}
@@ -314,9 +314,12 @@ def reset_game():
     st.session_state.burc = None
     st.session_state.astro = False
     st.session_state.profile_id = str(uuid.uuid4())
+    st.session_state.session_id = str(uuid.uuid4())
+    st.session_state.event_started = False
+    st.session_state.debug_pinged = False
+    st.session_state.compat_cache = {}
     if "final_profile" in st.session_state:
         del st.session_state["final_profile"]
-    st.session_state.compat_cache = {}
 
 
 # -------------------------
@@ -348,7 +351,6 @@ def paylasim_sayfasi_goster(profil: dict, lang: str):
     st.caption(t(lang, "shared_caption"))
 
     name = (profil.get("isim") or "").strip() or ("Traveler" if lang == "en" else "Yolcu")
-    sign = profil.get("burc") or "—"
     primary = profil.get("baskin")
     secondary = profil.get("ikincil")
 
@@ -383,7 +385,7 @@ def paylasim_sayfasi_goster(profil: dict, lang: str):
                 st.write(f"{i}. {satir}")
 
     st.divider()
-    if st.button(t(lang, "take_test_too")):
+    if st.button(t(lang, "take_test_too"), key="btn_take_test_too"):
         st.query_params.clear()
         st.rerun()
 
@@ -397,11 +399,13 @@ def uygula(etki, mini_sahne):
     st.session_state.gunluk.append(mini_sahne)
     st.session_state.adim += 1
 
+
 def baskin_ve_ikincil(puan_dict):
     sirali = sorted(puan_dict.items(), key=lambda x: x[1], reverse=True)
     baskin = sirali[0][0]
     ikincil = sirali[1][0] if len(sirali) > 1 else sirali[0][0]
     return baskin, ikincil
+
 
 def kehanet_metni(baskin, ikincil, lang: str):
     a = ARSHETIPLER[baskin]
@@ -447,12 +451,12 @@ def kehanet_metni(baskin, ikincil, lang: str):
     else:
         girisler = [
             "Bugün seçtiklerin, yarınki alışkanlıklarının taslağı.",
-            "Senin kader çizgin, karar anlarında belirginleşiyor.",
+            "Senin izlerin, karar anlarında belirginleşiyor.",
             "Bu test bir ‘doğru/yanlış’ değil; bir yön haritası.",
         ]
         kapanislar = [
             "Özetle: Yönün belli. Şimdi sadece yürümek kaldı.",
-            "Kader çizgisi sabit değil. Sen her gün yeniden çiziyorsun.",
+            "İz sabit değil. Sen her gün yeniden çiziyorsun.",
             "Bunu bir işarete çevir: küçük bir adım seç, bugün uygula.",
         ]
         aksiyon = {
@@ -479,6 +483,7 @@ def kehanet_metni(baskin, ikincil, lang: str):
 {random.choice(kapanislar)}
 """
 
+
 def sonuc_profili_uret(baskin, ikincil):
     isim = (st.session_state.get("isim") or "").strip() or ("Traveler" if st.session_state.lang == "en" else "Yolcu")
     return {
@@ -500,55 +505,12 @@ def cached_read_jsonl(path_str: str):
     report = read_jsonl(Path(path_str))
     return report.records
 
+
 def jsonl_oku(limit=80):
     records = cached_read_jsonl(str(RESULTS_LOG_PATH))
     if not records:
         return []
-    if limit is None:
-        return records
-    return records[-limit:]
-
-
-def puan_benzerligi(me, other):
-    keys = ["merak", "cesaret", "kontrol", "empati"]
-    v1 = [me.get("puan", {}).get(k, 0) for k in keys]
-    v2 = [other.get("puan", {}).get(k, 0) for k in keys]
-    s1, s2 = sum(v1), sum(v2)
-    if s1 == 0 or s2 == 0:
-        return 0
-    v1 = [x / s1 for x in v1]
-    v2 = [x / s2 for x in v2]
-    diff = sum(abs(a - b) for a, b in zip(v1, v2)) / len(keys)
-    sim = 1 - diff
-    return int(round(sim * 30))
-
-
-def uyum_maddeleri(me, other, lang: str):
-    items = []
-    iyi = me.get("uyum", {}).get("iyi", [])
-    zor = me.get("uyum", {}).get("zor", [])
-    ob = other.get("baskin")
-
-    if me.get("baskin") == other.get("baskin"):
-        items.append("Same primary archetype: similar tempo and reactions." if lang == "en" else "Baskın arketipiniz aynı: benzer tepki ve tempo.")
-    if me.get("ikincil") == other.get("ikincil"):
-        items.append("Same secondary archetype: similar decision style." if lang == "en" else "Destek arketipiniz aynı: benzer karar tarzı.")
-    if ob in iyi:
-        items.append("Their primary complements you (good match)." if lang == "en" else "Karşı tarafın baskın yönü seni tamamlıyor (iyi eşleşme).")
-    if ob in zor:
-        items.append("Their primary may challenge you (conflict risk)." if lang == "en" else "Karşı tarafın baskın yönü seni zorlayabilir (çatışma riski).")
-
-    sim = puan_benzerligi(me, other)
-    if sim >= 24:
-        items.append("Very similar choice distribution: low friction, high flow." if lang == "en" else "Karar dağılımınız çok benzer: çatışma az, akış yüksek.")
-    elif sim >= 16:
-        items.append("Many similarities: mid-to-good compatibility." if lang == "en" else "Birçok konuda benzer davranıyorsunuz: uyum orta-iyi.")
-    else:
-        items.append("Different approach: balanced with good communication." if lang == "en" else "Yaklaşım farkı var: doğru iletişimle dengelenir.")
-
-    if me.get("burc") and me.get("burc") == other.get("burc"):
-        items.append("Same zodiac sign: communication may feel easier." if lang == "en" else "Burç aynı: iletişim dili daha kolay tutabilir.")
-    return items
+    return records if limit is None else records[-limit:]
 
 
 def uyum_breakdown(me, other):
@@ -583,7 +545,6 @@ def uyum_breakdown(me, other):
 
     me_b = me.get("baskin")
     other_b = other.get("baskin")
-
     iyi = (UYUM_PROFILI.get(me_b, {}) or {}).get("iyi", [])
     zor = (UYUM_PROFILI.get(me_b, {}) or {}).get("zor", [])
 
@@ -604,12 +565,10 @@ def uyum_breakdown(me, other):
     skor = max(3, min(97, skor))
 
     result = (int(round(skor)), br)
-
     if len(cache) > 500:
         cache.clear()
     cache[pair_key] = result
     st.session_state.compat_cache = cache
-
     return result
 
 
@@ -628,15 +587,10 @@ def eslesme_vitrini(me, tum_profiller, top_n=2, mid_n=2, low_n=1):
     skorlu.sort(key=lambda x: x[0], reverse=True)
 
     top = skorlu[:top_n]
-    kalan = skorlu[top_n:]
-    if not kalan:
-        return top
-
     mid = []
     if mid_n > 0:
         start = max(0, len(skorlu) // 2 - mid_n)
         mid = skorlu[start:start + mid_n]
-
     low = skorlu[-low_n:] if low_n > 0 else []
 
     seen = set()
@@ -647,17 +601,13 @@ def eslesme_vitrini(me, tum_profiller, top_n=2, mid_n=2, low_n=1):
             continue
         seen.add(pid)
         vitrin.append((sk, br, p))
-
     return vitrin
 
 
-# -------------------------
-# App entrypoint
-# -------------------------
 def run():
     ensure_session_defaults()
 
-    # Sidebar language selector FIRST
+    # Sidebar
     st.sidebar.title(t(st.session_state.lang, "sidebar_title"))
     lang = st.sidebar.radio(
         t(st.session_state.lang, "language"),
@@ -666,15 +616,34 @@ def run():
         index=0 if st.session_state.lang == "tr" else 1,
     )
     st.session_state.lang = lang
-
     st.sidebar.checkbox(t(lang, "debug"), value=st.session_state.debug_mode, key="debug_mode")
+    debug_mode = st.session_state.debug_mode
 
-    st.set_page_config(page_title=t(lang, "page_title"), page_icon="🔮", layout="centered")
+    # DEBUG ping (sadece debug açıkken, 1 kere)
+    if debug_mode and (not st.session_state.debug_pinged):
+        log_event(EVENTS_LOG_PATH, {
+            "event": "debug_ping",
+            "profile_id": st.session_state.get("profile_id"),
+            "session_id": st.session_state.get("session_id"),
+            "lang": st.session_state.get("lang", "tr"),
+        })
+        st.session_state.debug_pinged = True
+
+    # EVENT: app_opened (once per session)
+    if not st.session_state.event_started:
+        log_event(EVENTS_LOG_PATH, {
+            "event": "app_opened",
+            "profile_id": st.session_state.get("profile_id"),
+            "session_id": st.session_state.get("session_id"),
+            "lang": st.session_state.get("lang", "tr"),
+            "has_share_id": bool(st.query_params.get("id", None)),
+        })
+        st.session_state.event_started = True
 
     # Questions
     SORULAR = get_questions(lang)
 
-    # Shared link handling (after lang chosen)
+    # Shared link handling
     qid = st.query_params.get("id", None)
     if qid:
         paylasilan = find_by_profile_id(RESULTS_LOG_PATH, str(qid))
@@ -689,25 +658,26 @@ def run():
     st.title(t(lang, "title"))
     st.caption(t(lang, "subtitle"))
 
-    debug_mode = st.session_state.debug_mode
-
-    # Name + share checkbox (step 0)
+    # Name + share checkbox
     if st.session_state.adim == 0:
         st.session_state.isim = st.text_input(
             t(lang, "name_optional"),
             value=st.session_state.get("isim", ""),
+            key="name_input",
         ).strip()
 
         st.session_state.paylas = st.checkbox(
             t(lang, "show_name_in_matches"),
             value=st.session_state.get("paylas", False),
+            key="show_name_checkbox",
         )
 
-    # Astro mode (step 0)
+    # Astro mode
     if st.session_state.adim == 0:
         st.session_state.astro = st.checkbox(
             t(lang, "astro_mode"),
             value=st.session_state.get("astro", False),
+            key="astro_checkbox",
         )
 
         if st.session_state.astro:
@@ -726,10 +696,16 @@ def run():
         else:
             st.info(t(lang, "astro_off"))
 
-    # Reset button
+    # Reset
     c1, c2 = st.columns([1, 1])
     with c1:
         if st.button(t(lang, "reset"), key="reset"):
+            log_event(EVENTS_LOG_PATH, {
+                "event": "reset_clicked",
+                "profile_id": st.session_state.get("profile_id"),
+                "session_id": st.session_state.get("session_id"),
+                "lang": st.session_state.get("lang", "tr"),
+            })
             reset_game()
             st.rerun()
     with c2:
@@ -740,17 +716,29 @@ def run():
     st.write(f"{t(lang,'progress')}: **{st.session_state.adim}/{len(SORULAR)}**")
     st.divider()
 
-    # Question flow
+    # Q flow
     if st.session_state.adim < len(SORULAR):
         soru, secenekler = SORULAR[st.session_state.adim]
         st.subheader(soru)
 
         for yazi, etki, mini_sahne in secenekler:
             if st.button(yazi, key=f"btn_{st.session_state.adim}_{yazi}"):
+
+                log_event(EVENTS_LOG_PATH, {
+                    "event": "question_answered",
+                    "profile_id": st.session_state.get("profile_id"),
+                    "session_id": st.session_state.get("session_id"),
+                    "lang": st.session_state.get("lang", "tr"),
+                    "step": int(st.session_state.adim),
+                    "question": str(soru),
+                    "choice": str(yazi),
+                    "effect": etki,
+                })
+
                 uygula(etki, mini_sahne)
                 st.rerun()
 
-    # Result screen
+    # Result
     else:
         isim = (st.session_state.get("isim") or "").strip() or ("Traveler" if lang == "en" else "Yolcu")
         st.subheader(t(lang, "life_path_for").format(name=isim))
@@ -762,17 +750,24 @@ def run():
         if "final_profile" not in st.session_state:
             st.session_state.final_profile = sonuc_profili_uret(baskin, ikincil)
 
+            log_event(EVENTS_LOG_PATH, {
+                "event": "result_shown",
+                "profile_id": st.session_state.get("profile_id"),
+                "session_id": st.session_state.get("session_id"),
+                "lang": st.session_state.get("lang", "tr"),
+                "primary": baskin,
+                "secondary": ikincil,
+                "scores": dict(st.session_state.puan),
+            })
+
         profil = st.session_state.final_profile
 
-        # Write to JSONL once
+        # Persist to results_log.jsonl only once
         if not st.session_state.get("logged", False):
             record = dict(profil)
             record["profile_id"] = ensure_unique_profile_id(RESULTS_LOG_PATH, record.get("profile_id"))
             written, pid = append_unique_by_profile_id(RESULTS_LOG_PATH, record)
-            try:
-                profil["profile_id"] = pid
-            except Exception:
-                pass
+            profil["profile_id"] = pid
             st.session_state.logged = True
             cached_read_jsonl.clear()
 
@@ -782,16 +777,55 @@ def run():
         )
         st.markdown(kehanet_metni(baskin, ikincil, lang))
 
-        # Share link
+        # -------------------------------------------------
+        # Share link (BURASI SHARE KISMI)  ✅ DOĞRU GİRİNTİ
+        # -------------------------------------------------
         st.divider()
         st.subheader(t(lang, "share_title"))
+
+        share_id = profil.get("profile_id")
+
+        # Lokal link (senin bilgisayarın)
+        local_url = f"http://localhost:8501/?id={share_id}"
+
+        # Cloudflare/Deploy base adresi (opsiyonel)
+        st.session_state.tunnel_base = st.text_input(
+            "Cloudflare / Deploy adresin (opsiyonel)",
+            value=(st.session_state.get("tunnel_base") or ""),
+            placeholder="https://xxxxx.trycloudflare.com",
+            key="tunnel_base_input",
+        ).strip()
+
+        tunnel_url = (
+            f"{st.session_state.tunnel_base.rstrip('/')}/?id={share_id}"
+            if st.session_state.tunnel_base
+            else ""
+        )
+
         colA, colB = st.columns([1, 2])
         with colA:
             if st.button(t(lang, "share_button"), key="btn_share_link"):
-                st.query_params["id"] = profil.get("profile_id")
-                st.rerun()
+                log_event(EVENTS_LOG_PATH, {
+                    "event": "share_link_created",
+                    "ts": datetime.now().isoformat(timespec="seconds"),
+                    "profile_id": st.session_state.get("profile_id"),
+                    "session_id": st.session_state.get("session_id"),
+                    "lang": st.session_state.get("lang", "tr"),
+                    "share_id": share_id,
+                })
+                st.session_state["last_share_id"] = share_id
+
         with colB:
             st.caption(t(lang, "share_hint"))
+
+        st.write("✅ Lokal link:")
+        st.text_input("Local URL", value=local_url, label_visibility="visible", key="local_url_output")
+
+        if tunnel_url:
+            st.write("✅ Paylaşılabilir link (Cloudflare/Deploy):")
+            st.text_input("Share URL", value=tunnel_url, label_visibility="visible", key="share_url_output")
+        else:
+            st.info("Cloudflare/Deploy adresini girersen burada tam paylaşım linkini üretirim.")
 
         # Score summary
         with st.expander(t(lang, "score_summary"), expanded=False):
@@ -804,11 +838,14 @@ def run():
                 })
             st.table(table)
 
-        # Your profile card
+        # Profile card
         st.subheader(t(lang, "your_profile"))
         with st.container(border=True):
             st.markdown(f"### {isim} ({t(lang,'you_label')})")
-            st.write(f"**{t(lang,'primary')}:** {a[lang]['name']} {a.get('icon','')}  |  **{t(lang,'secondary')}:** {b[lang]['name']} {b.get('icon','')}")
+            st.write(
+                f"**{t(lang,'primary')}:** {a[lang]['name']} {a.get('icon','')}  |  "
+                f"**{t(lang,'secondary')}:** {b[lang]['name']} {b.get('icon','')}"
+            )
             st.write(f"**{t(lang,'sign')}:** {st.session_state.get('burc') or '—'}")
 
         # Matches
@@ -825,8 +862,7 @@ def run():
         else:
             for rank, (sk, br, p) in enumerate(top2, 1):
                 isim2 = (p.get("isim") or "").strip()
-                paylas2 = p.get("paylas", False)
-                etiket2 = isim2 if (paylas2 and isim2) else t(lang, "anonymous")
+                etiket2 = isim2 if (p.get("paylas") and isim2) else t(lang, "anonymous")
 
                 bsk2 = p.get("baskin")
                 ik2 = p.get("ikincil")
@@ -836,7 +872,6 @@ def run():
                 baskin_text2 = f"{t(lang,'primary')}: {a1_2.get(lang,{}).get('name', bsk2)} {a1_2.get('icon','')}"
                 ikincil_text2 = f"{t(lang,'secondary')}: {a2_2.get(lang,{}).get('name', ik2)} {a2_2.get('icon','')}"
                 burc2 = p.get("burc") or "—"
-                nedenler2 = uyum_maddeleri(profil, p, lang)
 
                 debug_text2 = None
                 if debug_mode:
@@ -849,76 +884,10 @@ def run():
                     baskin_text=baskin_text2,
                     ikincil_text=ikincil_text2,
                     burc=burc2,
-                    neden_maddeler=nedenler2,
+                    neden_maddeler=[],
                     debug_mode=debug_mode,
                     debug_text=debug_text2,
                 )
-
-        top2_ids = {p.get("profile_id") for (_, _, p) in top2 if p.get("profile_id")}
-
-        st.subheader(t(lang, "other_matches"))
-        sirano = 1
-        for (sk, br, p) in yakinlar:
-            pid = p.get("profile_id")
-            if pid in top2_ids:
-                continue
-
-            isim3 = (p.get("isim") or "").strip()
-            etiket = isim3 if (p.get("paylas") and isim3) else t(lang, "anonymous")
-
-            bsk = p.get("baskin")
-            ik = p.get("ikincil")
-            a1 = ARSHETIPLER.get(bsk, {})
-            a2 = ARSHETIPLER.get(ik, {})
-
-            baskin_text = f"{t(lang,'primary')}: {a1.get(lang,{}).get('name', bsk)} {a1.get('icon','')}"
-            ikincil_text = f"{t(lang,'secondary')}: {a2.get(lang,{}).get('name', ik)} {a2.get('icon','')}"
-            burc = p.get("burc") or "—"
-            nedenler = uyum_maddeleri(profil, p, lang)
-
-            debug_text = None
-            if debug_mode:
-                debug_text = f"final01={br.final01:.3f} | raw={br.raw:.2f} shaped={br.shaped:.2f}"
-
-            render_match_card(
-                idx=sirano,
-                ad=etiket,
-                sk=sk,
-                baskin_text=baskin_text,
-                ikincil_text=ikincil_text,
-                burc=burc,
-                neden_maddeler=nedenler,
-                debug_mode=debug_mode,
-                debug_text=debug_text,
-            )
-            sirano += 1
-
-        # Report text
-        report_title = "Life Path Test Report" if lang == "en" else "Hayat Yolu Testi Raporu"
-        rapor = f"""{profil.get("isim") or ("Traveler" if lang=="en" else "Yolcu")} — {report_title}
-Date: {datetime.now().strftime("%Y-%m-%d %H:%M") if lang=="en" else datetime.now().strftime("%d.%m.%Y %H:%M")}
-{t(lang,'sign')}: {profil.get("burc") or "—"}
-{t(lang,'primary')}: {a[lang]['name']} {a.get('icon','')}
-{t(lang,'secondary')}: {b[lang]['name']} {b.get('icon','')}
-
-Scores:
-- Explorer 🧭 (merak): {profil.get("puan", {}).get("merak", 0)}
-- Warrior ⚔️ (cesaret): {profil.get("puan", {}).get("cesaret", 0)}
-- Strategist 🧠 (kontrol): {profil.get("puan", {}).get("kontrol", 0)}
-- Healer 🌿 (empati): {profil.get("puan", {}).get("empati", 0)}
-
-{kehanet_metni(profil.get("baskin"), profil.get("ikincil"), lang)}
-"""
-
-        rapor_key = f"rapor_kopyala_{profil.get('profile_id','x')}"
-        st.session_state[rapor_key] = rapor
-
-        with st.expander(t(lang, "report_copy"), expanded=False):
-            st.text_area(t(lang, "copy_hint"), key=rapor_key, height=320)
-
-        with st.expander(t(lang, "journal_scene"), expanded=False):
-            for i, satir in enumerate(st.session_state.gunluk, 1):
-                st.write(f"{i}. {satir}")
 
 
 if __name__ == "__main__":
