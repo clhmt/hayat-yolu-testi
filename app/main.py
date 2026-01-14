@@ -13,8 +13,10 @@ from app.storage import (
     ensure_unique_profile_id,
     find_by_profile_id,
     read_jsonl,
-    log_event,  # TEK KAYNAK
+    log_event,
+    gsheets_append_row,   # <-- EKLE
 )
+
 
 # ------------------------------------------------------------
 # Streamlit kuralı: set_page_config dosyanın EN ÜSTÜNDE olmalı
@@ -770,6 +772,16 @@ def run():
             profil["profile_id"] = pid
             st.session_state.logged = True
             cached_read_jsonl.clear()
+ 
+             # Google Sheets'e de yaz
+         try:
+            ok, msg = gsheets_append_row("results", profil["profile_id"], record)
+         if st.session_state.get("debug_mode"):
+            st.caption(f"Sheets results append: {ok} / {msg}")
+         except Exception as e:
+            if st.session_state.get("debug_mode"):
+            st.caption(f"Sheets results append ERROR: {e}")
+
 
         st.success(
             f"{t(lang,'primary')}: **{a[lang]['name']} {a.get('icon','')}**  |  "

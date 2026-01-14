@@ -174,3 +174,42 @@ def log_event(path: Path, event: dict) -> None:
     with path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(event, ensure_ascii=False) + "\n")
 
+# app/storage.py (EN ALTTA dursun)
+
+import json
+from datetime import datetime
+
+def gsheets_append_row(sheet_name: str, profil_id: str, payload: dict):
+    """
+    Streamlit secrets'tan kimliği alır ve Google Sheet'e 1 satır ekler.
+    Sheet'te kolonlar: ts | profil_id | payload_json
+    """
+    import streamlit as st
+    import gspread
+    from google.oauth2.service_account import Credentials
+
+    # Secrets kontrol
+    sheet_id = st.secrets.get("SHEET_ID")
+    sa_info = st.secrets.get("gcp_service_account")
+
+    if not sheet_id or not sa_info:
+        # Secrets yoksa sessizce çık (local debug vs.)
+        return False, "Missing SHEET_ID or gcp_service_account in secrets"
+
+    scopes = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive",
+    ]
+    creds = Credentials.from_service_account_info(sa_info, scopes=scopes)
+    gc = gspread.authorize(creds)
+
+    sh = gc.open_by_key(sheet_id)
+    ws = sh.worksheet(sheet_name)
+
+    ts = datetime.now().isoformat(timespec="seconds")
+    payload_str = json.dumps(payload, ensure_ascii=False)
+
+    ws.append_row([ts, profil_id, payload_str], value_input_option="RAW")
+    return True, "OK"
+
+
