@@ -17,3 +17,24 @@ __pycache__/
 
 # local backups
 _archive/backups/
+.streamlit/secrets.toml
+.streamlit/secrets.toml
+.streamlit/*.toml
+
+# local logs
+*.jsonl
+/events_log.jsonl
+/results_log.jsonl
+
+# secrets
+.streamlit/secrets.toml
+.streamlit/*.toml
+
+# local logs
+*.jsonl
+/events_log.jsonl
+/results_log.jsonl
+
+# secrets
+.streamlit/secrets.toml
+.streamlit/*.toml

@@ -1,137 +1,96 @@
 from __future__ import annotations
 
 import math
-import random
-from dataclasses import dataclass
-from typing import Dict, List, Tuple
+from typing import Dict, Tuple
 
 
-ARCHETYPES = ["kasif", "savasci", "stratejist", "sifaci"]
+ZODIAC_ELEMENT = {
+    "Koç": "Fire",
+    "Aslan": "Fire",
+    "Yay": "Fire",
+    "Boğa": "Earth",
+    "Başak": "Earth",
+    "Oğlak": "Earth",
+    "İkizler": "Air",
+    "Terazi": "Air",
+    "Kova": "Air",
+    "Yengeç": "Water",
+    "Akrep": "Water",
+    "Balık": "Water",
+}
+
+ELEMENT_BONUS = {
+    ("Fire", "Fire"): 15,
+    ("Earth", "Earth"): 15,
+    ("Air", "Air"): 15,
+    ("Water", "Water"): 15,
+    ("Fire", "Air"): 12,
+    ("Air", "Fire"): 12,
+    ("Earth", "Water"): 12,
+    ("Water", "Earth"): 12,
+}
 
 
-def clamp(x: float, lo: float, hi: float) -> float:
-    return max(lo, min(hi, x))
-
-
-def sigmoid(x: float) -> float:
-    # numerically stable sigmoid
-    if x >= 0:
-        z = math.exp(-x)
-        return 1.0 / (1.0 + z)
-    z = math.exp(x)
-    return z / (1.0 + z)
-
-
-def to_unit_vector(archetype_scores: Dict[str, float]) -> List[float]:
-    v = [float(archetype_scores.get(k, 0.0)) for k in ARCHETYPES]
-    norm = math.sqrt(sum(x * x for x in v))
-    if norm <= 1e-9:
-        # degenerate case: return a neutral unit vector
-        return [0.5, 0.5, 0.5, 0.5]
-    return [x / norm for x in v]
-
-
-def cosine_similarity(a: List[float], b: List[float]) -> float:
-    # both should be unit vectors; still clamp for safety
-    dot = sum(x * y for x, y in zip(a, b))
-    return clamp((dot + 1.0) / 2.0, 0.0, 1.0)  # map [-1,1] to [0,1]
-
-
-def profile_diversity(archetype_scores: Dict[str, float]) -> float:
-    """
-    Measures how 'non-flat' a profile is.
-    - If all archetypes are similar => diversity low (penalize)
-    - If there is a clearer differentiation => diversity higher (bonus)
-    Output: 0..1
-    """
-    vals = [float(archetype_scores.get(k, 0.0)) for k in ARCHETYPES]
-    if not vals:
-        return 0.5
-    mean = sum(vals) / len(vals)
-    var = sum((x - mean) ** 2 for x in vals) / len(vals)
-    # map variance to 0..1 with a soft saturation
-    # tweak 0.18 based on your score scale; works well if scores ~0..10
-    return clamp(var / (var + 0.18), 0.0, 1.0)
-
-
-def tag_similarity(tags_a: Dict[str, float] | None, tags_b: Dict[str, float] | None) -> float:
-    """
-    tags_*: e.g. {"iletisim": 0.8, "risk": 0.2, ...} in 0..1
-    If tags are missing, return neutral 0.5 (doesn't distort).
-    """
-    if not tags_a or not tags_b:
-        return 0.5
-
-    keys = sorted(set(tags_a.keys()) | set(tags_b.keys()))
+def _cosine_similarity(a: Dict[str, int], b: Dict[str, int]) -> float:
+    keys = set(a.keys()) | set(b.keys())
     if not keys:
-        return 0.5
-
-    # similarity = 1 - normalized L1 distance
-    dist = 0.0
+        return 0.0
+    dot = 0.0
+    na = 0.0
+    nb = 0.0
     for k in keys:
-        dist += abs(float(tags_a.get(k, 0.5)) - float(tags_b.get(k, 0.5)))
-
-    # max dist per key is 1.0, so normalize by len(keys)
-    dist /= len(keys)
-    return clamp(1.0 - dist, 0.0, 1.0)
-
-
-@dataclass(frozen=True)
-class CompatibilityBreakdown:
-    sim: float
-    div: float
-    tag_sim: float
-    raw: float
-    shaped: float
-    noise: float
-    final01: float
-    score: int
+        va = float(a.get(k, 0))
+        vb = float(b.get(k, 0))
+        dot += va * vb
+        na += va * va
+        nb += vb * vb
+    if na <= 0 or nb <= 0:
+        return 0.0
+    return dot / (math.sqrt(na) * math.sqrt(nb))
 
 
-def compute_compatibility_score(
-    profile_a: Dict[str, float],
-    profile_b: Dict[str, float],
-    tags_a: Dict[str, float] | None = None,
-    tags_b: Dict[str, float] | None = None,
-    seed: str | None = None,
-) -> CompatibilityBreakdown:
+def _label(score: int) -> str:
+    if score >= 85:
+        return "Çok Uyumlu"
+    if score >= 70:
+        return "Uyumlu"
+    if score >= 55:
+        return "Orta"
+    if score >= 40:
+        return "Zorlayıcı"
+    return "Çatışmalı"
+
+
+def compute_compatibility(
+    totals_a: Dict[str, int],
+    totals_b: Dict[str, int],
+    zodiac_a: str,
+    zodiac_b: str,
+) -> Tuple[int, str, Dict[str, int]]:
     """
-    Returns score 0..100 and a breakdown for 'why compatible?' UI.
-    seed: pass a stable seed (e.g. f"{userA_id}:{userB_id}") to keep scores consistent between sessions.
+    0-100 skor + etiket + breakdown döndürür.
+    breakdown:
+      - sim_pct: 0..100
+      - element_bonus: 0..15
+      - variety_bonus: 0..12
     """
-    # stable randomness for a pair (optional)
-    rng = random.Random(seed) if seed else random.Random()
+    sim = _cosine_similarity(totals_a or {}, totals_b or {})
+    base = int(round(sim * 70))
 
-    va = to_unit_vector(profile_a)
-    vb = to_unit_vector(profile_b)
+    ea = ZODIAC_ELEMENT.get(zodiac_a, "")
+    eb = ZODIAC_ELEMENT.get(zodiac_b, "")
+    element_bonus = ELEMENT_BONUS.get((ea, eb), 6 if ea and eb else 0)
 
-    sim = cosine_similarity(va, vb)                    # 0..1
-    div = (profile_diversity(profile_a) + profile_diversity(profile_b)) / 2.0  # 0..1
-    tag_sim = tag_similarity(tags_a, tags_b)           # 0..1
+    dom_a = max(totals_a, key=totals_a.get) if totals_a else ""
+    dom_b = max(totals_b, key=totals_b.get) if totals_b else ""
+    variety_bonus = 12 if (dom_a and dom_b and dom_a != dom_b) else 6
 
-    # composite raw score
-    raw = 0.62 * sim + 0.23 * tag_sim + 0.15 * div     # 0..1-ish
-    raw = clamp(raw, 0.0, 1.0)
+    score = max(0, min(100, base + element_bonus + variety_bonus))
+    label = _label(score)
 
-    # shape distribution (sigmoid)
-    shaped = sigmoid((raw - 0.5) * 5.4)                # 0..1, more spread
-
-    # controlled noise (less noise for higher compatibility)
-    epsilon = 0.02 + 0.05 * (1.0 - shaped)             # 0.02..0.06
-    noise = rng.uniform(-epsilon, +epsilon)
-
-    final01 = clamp(shaped + noise, 0.0, 1.0)
-
-    # map to 0..100 with a floor
-    score = int(round(6 + 90 * final01))
-
-    return CompatibilityBreakdown(
-        sim=sim,
-        div=div,
-        tag_sim=tag_sim,
-        raw=raw,
-        shaped=shaped,
-        noise=noise,
-        final01=final01,
-        score=score,
-    )
+    breakdown = {
+        "sim_pct": int(round(sim * 100)),
+        "element_bonus": int(element_bonus),
+        "variety_bonus": int(variety_bonus),
+    }
+    return score, label, breakdown

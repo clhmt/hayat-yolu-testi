@@ -1,1 +1,3 @@
-# app package
+"""
+IZ / Hayat Yolu Testi - app package
+"""

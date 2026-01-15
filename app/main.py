@@ -1,906 +1,527 @@
-# app/main.py
-import streamlit as st
-import random
-from pathlib import Path
-from datetime import datetime, date
+from __future__ import annotations
+
+import calendar
+import json
 import uuid
+from dataclasses import dataclass
+from datetime import date
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
-from app.compatibility import compute_compatibility_score
-from app.ui_components import render_match_card
-from app.utils import load_json
-from app.storage import (
-    append_unique_by_profile_id,
-    ensure_unique_profile_id,
-    find_by_profile_id,
-    read_jsonl,
-    log_event,
-    gsheets_append_row,   # <-- EKLE
-)
+import streamlit as st
 
+from app.storage import gsheets_append, gsheets_fetch_recent_results, utc_now_iso
+from app.compatibility import compute_compatibility
 
-# ------------------------------------------------------------
-# Streamlit kuralı: set_page_config dosyanın EN ÜSTÜNDE olmalı
-# ------------------------------------------------------------
-st.set_page_config(
-    page_title="IZ",
-    page_icon="🔮",
-    layout="centered",
-    initial_sidebar_state="expanded",
-    menu_items={"Get help": None, "Report a bug": None, "About": None},
-)
-
-# Repo root
-REPO_ROOT = Path(__file__).resolve().parents[1]
-RESULTS_LOG_PATH = REPO_ROOT / "results_log.jsonl"
-EVENTS_LOG_PATH = REPO_ROOT / "events_log.jsonl"
-DATA_DIR = REPO_ROOT / "data"
+APP_VERSION = "1.1.0"
+DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 
 
-# -------------------------
-# I18N
-# -------------------------
-TEXT = {
-    "tr": {
-        "page_title": "IZ",
-        "title": "🔮 IZ",
-        "subtitle": "Seçim yap. Hikaye ilerlesin. En sonda ‘izini’ okuyayım.",
-        "sidebar_title": "Ayarlar",
-        "language": "Dil",
-        "debug": "Debug modu",
-        "reset": "🔁 Sıfırla / Yeniden Başla",
-        "progress": "İlerleme",
-        "name_optional": "Adın ne? (opsiyonel)",
-        "show_name_in_matches": "Eşleşme listesinde ismim görünsün",
-        "astro_mode": "Astro modu (burç atmosferi ekle)",
-        "day": "Gün",
-        "month": "Ay",
-        "year": "Yıl",
-        "atmosphere": "🔭 Atmosfer",
-        "astro_off": "Astro modu kapalı: Açarsan burç atmosferini de eklerim.",
-        "share_title": "🔗 Paylaş",
-        "share_button": "Link oluştur",
-        # NOT: URL'yi artık otomatik değiştirmiyoruz. Linki aşağıdan kopyalatıyoruz.
-        "share_hint": "Linki aşağıdan kopyalayıp paylaş. (URL otomatik güncellenmez.)",
-        "shared_caption": "Paylaşılan sonuç görüntüleniyor.",
-        "shared_not_found": "Bu id ile kayıt bulunamadı. Yeni test başlatılıyor.",
-        "take_test_too": "✅ Testi ben de çözmek istiyorum",
-        "score_summary": "📊 Puan Özeti",
-        "no_log": "Günlük yok.",
-        "log_title": "🎬 Seçim Günlüğü",
-        "your_profile": "🧍 Senin Profilin",
-        "you_label": "Sen",
-        "sign": "Burç",
-        "travelers_like_you": "🧩 Benim gibi yolcular",
-        "best_matches": "💘 En iyi eşleşmelerin",
-        "other_matches": "🎯 Diğer eşleşmeler",
-        "not_enough_data": "Henüz yeterli veri yok.",
-        "anonymous": "Anonim Yolcu",
-        "primary": "Baskın",
-        "secondary": "Destek",
-        "report_copy": "📋 Raporu Kopyala",
-        "copy_hint": "Kopyala (Cmd/Ctrl + C):",
-        "journal_scene": "🎬 Seçim Günlüğün (sahne sahne)",
-        "life_path_for": "📌 {name} için İz Okuması",
-    },
-    "en": {
-        "page_title": "IZ",
-        "title": "🔮 IZ",
-        "subtitle": "Make choices. Let the story unfold. At the end, I’ll read your trace.",
-        "sidebar_title": "Settings",
-        "language": "Language",
-        "debug": "Debug mode",
-        "reset": "🔁 Reset / Start Over",
-        "progress": "Progress",
-        "name_optional": "What’s your name? (optional)",
-        "show_name_in_matches": "Show my name in match list",
-        "astro_mode": "Astro mode (add zodiac flavor)",
-        "day": "Day",
-        "month": "Month",
-        "year": "Year",
-        "atmosphere": "🔭 Atmosphere",
-        "astro_off": "Astro mode is off. Turn it on to add zodiac flavor.",
-        "share_title": "🔗 Share",
-        "share_button": "Create link",
-        "share_hint": "Copy the link below and share it. (URL won’t auto-update.)",
-        "shared_caption": "Showing a shared result.",
-        "shared_not_found": "No record found for this id. Starting a new test.",
-        "take_test_too": "✅ I want to take the test too",
-        "score_summary": "📊 Score Summary",
-        "no_log": "No log yet.",
-        "log_title": "🎬 Choice Log",
-        "your_profile": "🧍 Your Profile",
-        "you_label": "You",
-        "sign": "Sign",
-        "travelers_like_you": "🧩 Travelers like you",
-        "best_matches": "💘 Your best matches",
-        "other_matches": "🎯 Other matches",
-        "not_enough_data": "Not enough data yet.",
-        "anonymous": "Anonymous Traveler",
-        "primary": "Primary",
-        "secondary": "Secondary",
-        "report_copy": "📋 Copy Report",
-        "copy_hint": "Copy (Cmd/Ctrl + C):",
-        "journal_scene": "🎬 Your choice log (scene by scene)",
-        "life_path_for": "📌 {name}'s Trace Reading",
-    },
-}
-
-MONTHS = {
-    "tr": ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"],
-    "en": ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
-}
+@dataclass
+class Option:
+    yazi: str
+    etki: Dict[str, int]
+    mini_sahne: str
 
 
-def t(lang: str, key: str) -> str:
-    lang = lang if lang in TEXT else "tr"
-    return TEXT[lang].get(key, TEXT["tr"].get(key, key))
+@dataclass
+class Question:
+    soru: str
+    options: List[Option]
 
 
-# -------------------------
-# Questions
-# -------------------------
-def parse_questions(raw):
-    questions = []
+def _read_json(path: Path) -> Any:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def load_questions_for_lang(lang: str) -> List[Question]:
+    lang = (lang or "TR").upper()
+    candidates = {
+        "TR": [DATA_DIR / "questions_tr.json", DATA_DIR / "questions.json"],
+        "EN": [DATA_DIR / "questions_en.json"],
+    }.get(lang, [DATA_DIR / "questions_tr.json", DATA_DIR / "questions.json"])
+
+    file_path = None
+    for p in candidates:
+        if p.exists():
+            file_path = p
+            break
+    if not file_path:
+        raise FileNotFoundError("data/ altında questions_tr.json ve/veya questions_en.json olmalı.")
+
+    raw = _read_json(file_path)
+    if not isinstance(raw, list):
+        raise ValueError("Soru JSON formatı list olmalı.")
+
+    out: List[Question] = []
     for item in raw:
-        question = item.get("soru") or item.get("question")
-        opts = []
-        for s in item.get("secenekler", item.get("options", [])):
-            text = s.get("yazi") or s.get("text")
-            effect = s.get("etki") or s.get("effect") or {}
-            mini = s.get("mini_sahne") or s.get("mini_scene") or ""
-            opts.append((text, effect, mini))
-        questions.append((question, opts))
-    return questions
+        if not isinstance(item, dict):
+            continue
+
+        soru = item.get("soru") or item.get("question") or item.get("q")
+        secenekler = item.get("secenekler") or item.get("options") or item.get("a")
+
+        if not isinstance(soru, str) or not isinstance(secenekler, list):
+            continue
+
+        opts: List[Option] = []
+        for opt in secenekler:
+            if not isinstance(opt, dict):
+                continue
+            yazi = opt.get("yazi") or opt.get("text") or opt.get("label")
+            etki = opt.get("etki") or opt.get("impact") or {}
+            mini = opt.get("mini_sahne") or opt.get("mini_scene") or opt.get("scene") or ""
+            if not isinstance(yazi, str):
+                continue
+            if not isinstance(etki, dict):
+                etki = {}
+            safe_etki: Dict[str, int] = {}
+            for k, v in etki.items():
+                try:
+                    safe_etki[str(k)] = int(v)
+                except Exception:
+                    continue
+            opts.append(Option(yazi=yazi, etki=safe_etki, mini_sahne=str(mini)))
+
+        if opts:
+            out.append(Question(soru=soru, options=opts))
+
+    if not out:
+        raise ValueError("Sorular parse edilemedi.")
+    return out
 
 
-@st.cache_data(show_spinner=False)
-def get_questions(lang: str):
-    lang = lang if lang in ("tr", "en") else "tr"
-    primary = DATA_DIR / ("questions_en.json" if lang == "en" else "questions_tr.json")
-    fallback = DATA_DIR / "questions.json"
-    path = primary if primary.exists() else fallback
-    raw = load_json(str(path))
-    return parse_questions(raw)
+def ensure_session() -> None:
+    if "session_id" not in st.session_state:
+        st.session_state["session_id"] = str(uuid.uuid4())
+    if "profile_id" not in st.session_state:
+        st.session_state["profile_id"] = str(uuid.uuid4())
+
+    if "lang" not in st.session_state:
+        st.session_state["lang"] = "TR"
+    if "debug" not in st.session_state:
+        st.session_state["debug"] = False
+
+    if "step" not in st.session_state:
+        st.session_state["step"] = "intro"
+    if "q_index" not in st.session_state:
+        st.session_state["q_index"] = 0
+    if "answers" not in st.session_state:
+        st.session_state["answers"] = {}
+
+    if "name" not in st.session_state:
+        st.session_state["name"] = ""
+    if "dob" not in st.session_state:
+        st.session_state["dob"] = {"year": 1990, "month": 1, "day": 1}
+
+    if "last_sheets_status" not in st.session_state:
+        st.session_state["last_sheets_status"] = ""
+
+    if "_app_opened_logged" not in st.session_state:
+        st.session_state["_app_opened_logged"] = False
 
 
-# -------------------------
-# Content
-# -------------------------
-ARSHETIPLER = {
-    "merak": {
+def show_sheets_status(ok: bool, msg: str) -> None:
+    if st.session_state.get("debug"):
+        if ok:
+            st.success(msg)
+        else:
+            st.error(f"Sheets ERROR: {msg}")
+        return
+    if not ok:
+        st.error(f"Sheets ERROR: {msg}")
+
+
+def log_event(event_name: str, payload: Optional[Dict[str, Any]] = None) -> None:
+    row = {
+        "ts_utc": utc_now_iso(),
+        "session_id": st.session_state["session_id"],
+        "profile_id": st.session_state["profile_id"],
+        "event_name": event_name,
+        "event_json": payload or {},
+        "app_version": APP_VERSION,
+        "source": "cloud_or_local",
+    }
+    ok, msg = gsheets_append("events", row)
+    st.session_state["last_sheets_status"] = msg
+    show_sheets_status(ok, msg)
+
+
+def write_result(result: Dict[str, Any]) -> None:
+    row = {
+        "ts_utc": utc_now_iso(),
+        "session_id": st.session_state["session_id"],
+        "profile_id": st.session_state["profile_id"],
+        "name": result.get("name", ""),
+        "zodiac": result.get("zodiac", ""),
+        "dominant": result.get("dominant", ""),
+        "score": result.get("score", 0),
+        "result_json": result,
+        "app_version": APP_VERSION,
+        "source": "cloud_or_local",
+    }
+    ok, msg = gsheets_append("results", row)
+    st.session_state["last_sheets_status"] = msg
+    show_sheets_status(ok, msg)
+
+
+def zodiac_from_date(d: date) -> str:
+    md = (d.month, d.day)
+    if (md >= (3, 21)) and (md <= (4, 19)):
+        return "Koç"
+    if (md >= (4, 20)) and (md <= (5, 20)):
+        return "Boğa"
+    if (md >= (5, 21)) and (md <= (6, 20)):
+        return "İkizler"
+    if (md >= (6, 21)) and (md <= (7, 22)):
+        return "Yengeç"
+    if (md >= (7, 23)) and (md <= (8, 22)):
+        return "Aslan"
+    if (md >= (8, 23)) and (md <= (9, 22)):
+        return "Başak"
+    if (md >= (9, 23)) and (md <= (10, 22)):
+        return "Terazi"
+    if (md >= (10, 23)) and (md <= (11, 21)):
+        return "Akrep"
+    if (md >= (11, 22)) and (md <= (12, 21)):
+        return "Yay"
+    if (md >= (12, 22)) or (md <= (1, 19)):
+        return "Oğlak"
+    if (md >= (1, 20)) and (md <= (2, 18)):
+        return "Kova"
+    return "Balık"
+
+
+def compute_scores(answers: Dict[int, Dict[str, Any]]) -> Dict[str, int]:
+    totals: Dict[str, int] = {}
+    for _, opt in answers.items():
+        etki = opt.get("etki", {})
+        if isinstance(etki, dict):
+            for k, v in etki.items():
+                try:
+                    totals[k] = totals.get(k, 0) + int(v)
+                except Exception:
+                    continue
+    return totals
+
+
+def dominant_trait(totals: Dict[str, int]) -> Tuple[str, int]:
+    if not totals:
+        return ("", 0)
+    k, v = max(totals.items(), key=lambda x: x[1])
+    return (k, int(v))
+
+
+ARCHETYPE = {
+    "kontrol": {
+        "title": "Planlı Stratejist",
         "icon": "🧭",
-        "tr": {"name": "Kaşif", "motto": "Cevap değil, doğru soru güç verir.", "desc": "Yeni fikirlere hızlı açılırsın. Bilmediğin yere gitmek seni korkutmaz; merakın seni taşır."},
-        "en": {"name": "Explorer", "motto": "Not answers, the right questions give power.", "desc": "You open fast to new ideas. The unknown doesn’t scare you; curiosity carries you."},
-        "strengths_tr": ["Öğrenme hızı", "Yaratıcı problem çözme", "Fırsatları görme"],
-        "risks_tr": ["Dağılma", "Yarım bırakma", "Sürekli seçenek arama"],
-        "strengths_en": ["Fast learning", "Creative problem solving", "Spotting opportunities"],
-        "risks_en": ["Scattering", "Not finishing", "Endless options"],
+        "strength": "Belirsizlikte bile yapı kurup ilerlersin.",
+        "shadow": "Aşırı kontrol, fırsatları geciktirebilir.",
+        "micro": "Bugün bir işi %80’de bırak ve gönder.",
+    },
+    "merak": {
+        "title": "Keskin Kaşif",
+        "icon": "🔎",
+        "strength": "İpucu kovalarsın. Yeni bağlantılar kurarsın.",
+        "shadow": "Fazla seçenek kararı geciktirebilir.",
+        "micro": "10 dk araştır, sonra tek hamle seç ve uygula.",
     },
     "cesaret": {
-        "icon": "⚔️",
-        "tr": {"name": "Savaşçı", "motto": "Korku var diye durmam.", "desc": "Risk alabilirsin. Karar anında beklemek yerine hamle yapmayı seçersin."},
-        "en": {"name": "Warrior", "motto": "I don’t stop just because fear exists.", "desc": "You can take risks. In decision moments, you prefer action over waiting."},
-        "strengths_tr": ["Hızlı aksiyon", "Liderlik", "Zor anlarda soğukkanlılık"],
-        "risks_tr": ["Acelecilik", "Gereksiz çatışma", "Sabırsızlık"],
-        "strengths_en": ["Fast action", "Leadership", "Calm under pressure"],
-        "risks_en": ["Rushing", "Unnecessary conflict", "Impatience"],
-    },
-    "kontrol": {
-        "icon": "🧠",
-        "tr": {"name": "Stratejist", "motto": "Plan yapan kazanır.", "desc": "Sistem kurar, işi ölçer, kontrol edersin. Kaosu azaltırsın, düzen kurarsın."},
-        "en": {"name": "Strategist", "motto": "Those who plan, win.", "desc": "You build systems, measure, and control. You reduce chaos and create order."},
-        "strengths_tr": ["Disiplin", "Planlama", "Süreç yönetimi"],
-        "risks_tr": ["Aşırı kontrol", "Esneklik kaybı", "Kendini yıpratma"],
-        "strengths_en": ["Discipline", "Planning", "Process management"],
-        "risks_en": ["Over-control", "Loss of flexibility", "Self-wear"],
+        "title": "Atılgan Öncü",
+        "icon": "⚡",
+        "strength": "Aksiyon alıp momentum yaratırsın.",
+        "shadow": "Plansız risk maliyet çıkarabilir.",
+        "micro": "En kötü senaryoyu 1 cümlede yaz. Katlanıyorsan devam.",
     },
     "empati": {
-        "icon": "🌿",
-        "tr": {"name": "Şifacı", "motto": "İnsanı anlamadan hayat anlaşılmaz.", "desc": "İlişki yönetimi güçlüdür. Ortamı okur, insanları hissedersin."},
-        "en": {"name": "Healer", "motto": "Without understanding people, life stays unread.", "desc": "You manage relationships well. You read the room and feel people."},
-        "strengths_tr": ["İletişim", "Güven inşası", "Duygusal zekâ"],
-        "risks_tr": ["Fazla yük alma", "Sınır koyamama", "Herkesi memnun etmeye çalışma"],
-        "strengths_en": ["Communication", "Building trust", "Emotional intelligence"],
-        "risks_en": ["Carrying too much", "Weak boundaries", "People-pleasing"],
+        "title": "Sakin Şifacı",
+        "icon": "🤝",
+        "strength": "Bağ kurar, güven üretirsin.",
+        "shadow": "Sınır koymazsan tükenirsin.",
+        "micro": "Yardım edeceksen süre koy: 15 dk.",
     },
 }
 
-ARCHETYPE_MAP = {"merak": "kasif", "cesaret": "savasci", "kontrol": "stratejist", "empati": "sifaci"}
 
-UYUM_PROFILI = {
-    "merak": {"iyi": ["empati", "kontrol"], "zor": ["cesaret"]},
-    "cesaret": {"iyi": ["kontrol", "merak"], "zor": ["empati"]},
-    "kontrol": {"iyi": ["cesaret", "empati"], "zor": ["merak"]},
-    "empati": {"iyi": ["merak", "kontrol"], "zor": ["cesaret"]},
-}
-
-SIGNS_TR = ["Koç","Boğa","İkizler","Yengeç","Aslan","Başak","Terazi","Akrep","Yay","Oğlak","Kova","Balık"]
-SIGNS_EN = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"]
-SIGN_MAP_TR_EN = dict(zip(SIGNS_TR, SIGNS_EN))
-
-BURC_TEMALARI_TR = {
-    "Koç": "Hız ve hamle haftası: cesaret tetikte, sabırsızlığa dikkat.",
-    "Boğa": "İstikrar ve güven arayışı: yavaş ama sağlam ilerle.",
-    "İkizler": "Zihin açılıyor: merak artar, dağılmaya dikkat.",
-    "Yengeç": "Duygu dalgaları yükselir: bağ kur, sınırlarını koru.",
-    "Aslan": "Sahne senin: görünür ol, ego tuzağına düşme.",
-    "Başak": "Düzen ve verim: sistemi iyileştir, mükemmeliyetçiliği bırak.",
-    "Terazi": "Denge sınavı: karar gecikmesin, netlik kazan.",
-    "Akrep": "Derinleşme haftası: sezgi güçlü, kontrol takıntısına dikkat.",
-    "Yay": "Ufuk genişler: yeni yol çağırır, yarım bırakma risk.",
-    "Oğlak": "Hedef ve disiplin: plan kazanır, katılaşma riski var.",
-    "Kova": "Farklı düşün: kalıpları kır, kopukluk yaratma.",
-    "Balık": "Sezgi ve hayal: ilham yüksek, gerçeklikten kaçma.",
-}
-BURC_TEMALARI_EN = {
-    "Aries": "Speed and action week: courage is up, watch impatience.",
-    "Taurus": "Stability and safety: slow, steady progress wins.",
-    "Gemini": "Mind opens: curiosity rises, avoid scattering.",
-    "Cancer": "Emotional tides: connect, but keep boundaries.",
-    "Leo": "Spotlight time: be visible, avoid ego traps.",
-    "Virgo": "Order and efficiency: improve the system, drop perfectionism.",
-    "Libra": "Balance test: don’t delay decisions, get clarity.",
-    "Scorpio": "Depth week: intuition strong, avoid control obsession.",
-    "Sagittarius": "Horizons expand: new paths call, beware abandoning.",
-    "Capricorn": "Goals and discipline: plans win, avoid rigidity.",
-    "Aquarius": "Think different: break patterns, avoid detachment.",
-    "Pisces": "Intuition and imagination: inspiration high, don’t escape reality.",
-}
-
-
-def burc_hesapla(d: date, lang: str) -> str:
-    m, g = d.month, d.day
-    if (m == 3 and g >= 21) or (m == 4 and g <= 19): s = "Koç"
-    elif (m == 4 and g >= 20) or (m == 5 and g <= 20): s = "Boğa"
-    elif (m == 5 and g >= 21) or (m == 6 and g <= 20): s = "İkizler"
-    elif (m == 6 and g >= 21) or (m == 7 and g <= 22): s = "Yengeç"
-    elif (m == 7 and g >= 23) or (m == 8 and g <= 22): s = "Aslan"
-    elif (m == 8 and g >= 23) or (m == 9 and g <= 22): s = "Başak"
-    elif (m == 9 and g >= 23) or (m == 10 and g <= 22): s = "Terazi"
-    elif (m == 10 and g >= 23) or (m == 11 and g <= 21): s = "Akrep"
-    elif (m == 11 and g >= 22) or (m == 12 and g <= 21): s = "Yay"
-    elif (m == 12 and g >= 22) or (m == 1 and g <= 19): s = "Oğlak"
-    elif (m == 1 and g >= 20) or (m == 2 and g <= 18): s = "Kova"
-    else: s = "Balık"
-    return SIGN_MAP_TR_EN[s] if lang == "en" else s
-
-
-# -------------------------
-# Session helpers
-# -------------------------
-def ensure_session_defaults():
-    if "lang" not in st.session_state:
-        st.session_state.lang = "tr"
-    if "debug_mode" not in st.session_state:
-        st.session_state.debug_mode = False
-    if "puan" not in st.session_state:
-        st.session_state.puan = {k: 0 for k in ARSHETIPLER.keys()}
-    if "adim" not in st.session_state:
-        st.session_state.adim = 0
-    if "gunluk" not in st.session_state:
-        st.session_state.gunluk = []
-    if "logged" not in st.session_state:
-        st.session_state.logged = False
-    if "isim" not in st.session_state:
-        st.session_state.isim = ""
-    if "paylas" not in st.session_state:
-        st.session_state.paylas = False
-    if "dogum_tarihi" not in st.session_state:
-        st.session_state.dogum_tarihi = None
-    if "burc" not in st.session_state:
-        st.session_state.burc = None
-    if "astro" not in st.session_state:
-        st.session_state.astro = False
-    if "profile_id" not in st.session_state:
-        st.session_state.profile_id = str(uuid.uuid4())
-    if "compat_cache" not in st.session_state:
-        st.session_state.compat_cache = {}
-    if "session_id" not in st.session_state:
-        st.session_state.session_id = str(uuid.uuid4())
-    if "event_started" not in st.session_state:
-        st.session_state.event_started = False
-    if "debug_pinged" not in st.session_state:
-        st.session_state.debug_pinged = False
-    if "tunnel_base" not in st.session_state:
-        st.session_state.tunnel_base = ""
-
-
-def reset_game():
-    st.session_state.puan = {k: 0 for k in ARSHETIPLER.keys()}
-    st.session_state.adim = 0
-    st.session_state.gunluk = []
-    st.session_state.logged = False
-    st.session_state.isim = ""
-    st.session_state.paylas = False
-    st.session_state.dogum_tarihi = None
-    st.session_state.burc = None
-    st.session_state.astro = False
-    st.session_state.profile_id = str(uuid.uuid4())
-    st.session_state.session_id = str(uuid.uuid4())
-    st.session_state.event_started = False
-    st.session_state.debug_pinged = False
-    st.session_state.compat_cache = {}
-    if "final_profile" in st.session_state:
-        del st.session_state["final_profile"]
-
-
-# -------------------------
-# UI helpers
-# -------------------------
-def dogum_tarihi_secici(varsayilan: date, lang: str) -> date:
-    months = MONTHS.get(lang, MONTHS["tr"])
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        gun = st.selectbox(t(lang, "day"), list(range(1, 32)), index=varsayilan.day - 1)
-    with c2:
-        ay_index = st.selectbox(
-            t(lang, "month"),
-            list(range(12)),
-            format_func=lambda x: months[x],
-            index=varsayilan.month - 1,
-        )
-    with c3:
-        yil = st.selectbox(
-            t(lang, "year"),
-            list(range(1900, date.today().year + 1)),
-            index=varsayilan.year - 1900,
-        )
-    return date(yil, ay_index + 1, gun)
-
-
-def paylasim_sayfasi_goster(profil: dict, lang: str):
-    st.title(t(lang, "title"))
-    st.caption(t(lang, "shared_caption"))
-
-    name = (profil.get("isim") or "").strip() or ("Traveler" if lang == "en" else "Yolcu")
-    primary = profil.get("baskin")
-    secondary = profil.get("ikincil")
-
-    a = ARSHETIPLER.get(primary, {})
-    b = ARSHETIPLER.get(secondary, {})
-
-    st.subheader(t(lang, "life_path_for").format(name=name))
-    st.success(
-        f"{t(lang,'primary')}: **{a.get(lang,{}).get('name', primary)} {a.get('icon','')}**  |  "
-        f"{t(lang,'secondary')}: **{b.get(lang,{}).get('name', secondary)} {b.get('icon','')}**"
+def inject_css() -> None:
+    st.markdown(
+        """
+        <style>
+        .iz-hero {
+            border-radius: 18px;
+            padding: 18px 18px;
+            background: linear-gradient(90deg, rgba(176,196,255,.22), rgba(140,255,219,.18));
+            border: 1px solid rgba(0,0,0,.06);
+        }
+        .iz-muted { color: rgba(0,0,0,.60); }
+        .iz-q {
+            border: 1px solid rgba(0,0,0,.08);
+            border-radius: 16px;
+            padding: 16px 16px;
+            background: rgba(255,255,255,.72);
+        }
+        .iz-card {
+            border: 1px solid rgba(0,0,0,.10);
+            border-radius: 14px;
+            padding: 12px 14px;
+            background: rgba(255,255,255,.9);
+            margin: 10px 0;
+        }
+        div[role="radiogroup"] label {
+            border: 1px solid rgba(0,0,0,.10);
+            padding: 14px 14px;
+            border-radius: 14px;
+            margin: 10px 0px;
+            background: rgba(255,255,255,.90);
+            cursor: pointer;
+        }
+        div[role="radiogroup"] label:hover {
+            border-color: rgba(30,144,255,.55);
+            background: rgba(30,144,255,.06);
+        }
+        div[role="radiogroup"] input[type="radio"] { display: none !important; }
+        div[role="radiogroup"] label:has(input:checked) {
+            border-color: rgba(30,144,255,.95);
+            box-shadow: 0 6px 16px rgba(30,144,255,.12);
+            background: rgba(30,144,255,.08);
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
     )
 
-    st.markdown(kehanet_metni(primary, secondary, lang))
 
-    with st.expander(t(lang, "score_summary"), expanded=False):
-        puan = profil.get("puan") or {}
-        table = []
-        for k in ["merak", "cesaret", "kontrol", "empati"]:
-            ar = ARSHETIPLER[k]
-            table.append({
-                "Archetype" if lang == "en" else "Arketip": f"{ar[lang]['name']} {ar.get('icon','')}",
-                "Score" if lang == "en" else "Puan": puan.get(k, 0)
-            })
-        st.table(table)
+def dob_picker() -> date:
+    years = list(range(1950, date.today().year + 1))
+    years.reverse()
 
-    with st.expander(t(lang, "log_title"), expanded=False):
-        gunluk = profil.get("gunluk") or []
-        if not gunluk:
-            st.caption(t(lang, "no_log"))
-        else:
-            for i, satir in enumerate(gunluk, 1):
-                st.write(f"{i}. {satir}")
+    y = st.session_state["dob"]["year"]
+    m = st.session_state["dob"]["month"]
+    d = st.session_state["dob"]["day"]
 
-    st.divider()
-    if st.button(t(lang, "take_test_too"), key="btn_take_test_too"):
-        st.query_params.clear()
-        st.rerun()
+    coly, colm, cold = st.columns([1, 1, 1])
+    with coly:
+        year = st.selectbox("Yıl", years, index=years.index(y) if y in years else 0, key="dob_year")
+    with colm:
+        month = st.selectbox("Ay", list(range(1, 13)), index=m - 1, key="dob_month")
 
+    max_day = calendar.monthrange(int(year), int(month))[1]
+    days = list(range(1, max_day + 1))
+    safe_day = d if (1 <= int(d) <= max_day) else 1
 
-# -------------------------
-# Game logic
-# -------------------------
-def uygula(etki, mini_sahne):
-    for k, v in etki.items():
-        st.session_state.puan[k] += v
-    st.session_state.gunluk.append(mini_sahne)
-    st.session_state.adim += 1
+    with cold:
+        day = st.selectbox("Gün", days, index=days.index(int(safe_day)), key="dob_day")
+
+    st.session_state["dob"] = {"year": int(year), "month": int(month), "day": int(day)}
+    return date(int(year), int(month), int(day))
 
 
-def baskin_ve_ikincil(puan_dict):
-    sirali = sorted(puan_dict.items(), key=lambda x: x[1], reverse=True)
-    baskin = sirali[0][0]
-    ikincil = sirali[1][0] if len(sirali) > 1 else sirali[0][0]
-    return baskin, ikincil
+def run_app() -> None:
+    st.set_page_config(page_title="IZ", layout="wide")
+    ensure_session()
+    inject_css()
 
-
-def kehanet_metni(baskin, ikincil, lang: str):
-    a = ARSHETIPLER[baskin]
-    b = ARSHETIPLER[ikincil]
-
-    if lang == "en":
-        intros = [
-            "What you chose today becomes tomorrow’s habit blueprint.",
-            "Your path shows itself in decision moments.",
-            "This isn’t ‘right/wrong’. It’s a directional map.",
-        ]
-        outros = [
-            "In short: your direction is clear. Now you walk.",
-            "A path isn’t fixed. You redraw it daily.",
-            "Turn it into a signal: pick one small step and do it today.",
-        ]
-        action = {
-            "merak": "Pick 1 new topic and build a 30-minute micro-learning routine this week.",
-            "cesaret": "48-hour rule: choose 1 thing you keep postponing and start within 48 hours.",
-            "kontrol": "One-page plan: goal, metric, first step, risk, and plan B.",
-            "empati": "Relationship investment: message 3 people ‘how are you?’ and offer concrete help.",
-        }[baskin]
-
-        strengths = ", ".join(a["strengths_en"])
-        risks = ", ".join(a["risks_en"])
-        return f"""
-**Primary Archetype:** **{a['en']['name']} {a.get('icon','')}**  
-**Secondary Support:** **{b['en']['name']} {b.get('icon','')}**
-
-**Motto:** _{a['en']['motto']}_
-
-{random.choice(intros)}
-
-### How your path operates
-- Strengths: {strengths}
-- Shadows to watch: {risks}
-
-### This week’s clear action
-**{action}**
-
-{random.choice(outros)}
-"""
-    else:
-        girisler = [
-            "Bugün seçtiklerin, yarınki alışkanlıklarının taslağı.",
-            "Senin izlerin, karar anlarında belirginleşiyor.",
-            "Bu test bir ‘doğru/yanlış’ değil; bir yön haritası.",
-        ]
-        kapanislar = [
-            "Özetle: Yönün belli. Şimdi sadece yürümek kaldı.",
-            "İz sabit değil. Sen her gün yeniden çiziyorsun.",
-            "Bunu bir işarete çevir: küçük bir adım seç, bugün uygula.",
-        ]
-        aksiyon = {
-            "merak": "Bu hafta 1 yeni konu seç, 30 dakikalık mikro-öğrenme rutini kur.",
-            "cesaret": "48 saat kuralı: Ertelediğin 1 şeyi seç ve 48 saat içinde başlat.",
-            "kontrol": "Tek sayfalık plan: Hedef, metrik, ilk adım, risk, B planı yaz.",
-            "empati": "İlişki yatırımı: 3 kişiye ‘nasılsın’ mesajı at, somut destek teklif et.",
-        }[baskin]
-        return f"""
-**Baskın Arketip:** **{a["tr"]["name"]} {a.get("icon","")}**  
-**İkincil Destek:** **{b["tr"]["name"]} {b.get("icon","")}**
-
-**Motto:** _{a["tr"]["motto"]}_
-
-{random.choice(girisler)}
-
-### Senin yolun nasıl çalışıyor?
-- Güçlerin: {", ".join(a["strengths_tr"])}
-- Dikkat etmen gereken gölgeler: {", ".join(a["risks_tr"])}
-
-### Bu haftanın net aksiyonu
-**{aksiyon}**
-
-{random.choice(kapanislar)}
-"""
-
-
-def sonuc_profili_uret(baskin, ikincil):
-    isim = (st.session_state.get("isim") or "").strip() or ("Traveler" if st.session_state.lang == "en" else "Yolcu")
-    return {
-        "profile_id": st.session_state.get("profile_id"),
-        "timestamp": datetime.now().isoformat(timespec="seconds"),
-        "isim": isim,
-        "burc": st.session_state.get("burc"),
-        "baskin": baskin,
-        "ikincil": ikincil,
-        "puan": st.session_state.puan,
-        "paylas": st.session_state.get("paylas", False),
-        "gunluk": st.session_state.gunluk,
-        "uyum": UYUM_PROFILI.get(baskin, {"iyi": [], "zor": []}),
-    }
-
-
-@st.cache_data(show_spinner=False)
-def cached_read_jsonl(path_str: str):
-    report = read_jsonl(Path(path_str))
-    return report.records
-
-
-def jsonl_oku(limit=80):
-    records = cached_read_jsonl(str(RESULTS_LOG_PATH))
-    if not records:
-        return []
-    return records if limit is None else records[-limit:]
-
-
-def uyum_breakdown(me, other):
-    cache = st.session_state.get("compat_cache", {})
-    id_a = str(me.get("profile_id", "A"))
-    id_b = str(other.get("profile_id", "B"))
-    pair_key = tuple(sorted([id_a, id_b]))
-
-    if pair_key in cache:
-        return cache[pair_key]
-
-    puan_me = me.get("puan", {}) or {}
-    puan_other = other.get("puan", {}) or {}
-
-    profile_a = {ARCHETYPE_MAP[k]: float(v) for k, v in puan_me.items() if k in ARCHETYPE_MAP}
-    profile_b = {ARCHETYPE_MAP[k]: float(v) for k, v in puan_other.items() if k in ARCHETYPE_MAP}
-
-    pair_seed = ":".join(pair_key)
-
-    br = compute_compatibility_score(
-        profile_a=profile_a,
-        profile_b=profile_b,
-        tags_a=None,
-        tags_b=None,
-        seed=pair_seed,
-    )
-
-    x = float(br.final01)
-    gamma = 2.6
-    shaped = x ** gamma
-    base = 10 + 86 * shaped
-
-    me_b = me.get("baskin")
-    other_b = other.get("baskin")
-    iyi = (UYUM_PROFILI.get(me_b, {}) or {}).get("iyi", [])
-    zor = (UYUM_PROFILI.get(me_b, {}) or {}).get("zor", [])
-
-    adj = 0
-    if other_b in iyi:
-        adj += 10
-    if other_b in zor:
-        adj -= 18
-    if me.get("baskin") == other.get("baskin"):
-        adj += 6
-    if me.get("ikincil") == other.get("ikincil"):
-        adj += 3
-    if me.get("baskin") == other.get("baskin") == "kontrol":
-        adj -= 6
-
-    scale = 0.25 + 0.75 * (1.0 - x)
-    skor = base + adj * scale
-    skor = max(3, min(97, skor))
-
-    result = (int(round(skor)), br)
-    if len(cache) > 500:
-        cache.clear()
-    cache[pair_key] = result
-    st.session_state.compat_cache = cache
-    return result
-
-
-def eslesme_vitrini(me, tum_profiller, top_n=2, mid_n=2, low_n=1):
-    me_id = me.get("profile_id")
-    adaylar = [p for p in tum_profiller if p.get("profile_id") != me_id]
-
-    skorlu = []
-    for p in adaylar:
-        sk, br = uyum_breakdown(me, p)
-        skorlu.append((sk, br, p))
-
-    if not skorlu:
-        return []
-
-    skorlu.sort(key=lambda x: x[0], reverse=True)
-
-    top = skorlu[:top_n]
-    mid = []
-    if mid_n > 0:
-        start = max(0, len(skorlu) // 2 - mid_n)
-        mid = skorlu[start:start + mid_n]
-    low = skorlu[-low_n:] if low_n > 0 else []
-
-    seen = set()
-    vitrin = []
-    for sk, br, p in top + mid + low:
-        pid = p.get("profile_id")
-        if pid in seen:
-            continue
-        seen.add(pid)
-        vitrin.append((sk, br, p))
-    return vitrin
-
-
-def run():
-    ensure_session_defaults()
-
-    # Sidebar
-    st.sidebar.title(t(st.session_state.lang, "sidebar_title"))
-    lang = st.sidebar.radio(
-        t(st.session_state.lang, "language"),
-        options=["tr", "en"],
-        format_func=lambda x: "Türkçe" if x == "tr" else "English",
-        index=0 if st.session_state.lang == "tr" else 1,
-    )
-    st.session_state.lang = lang
-    st.sidebar.checkbox(t(lang, "debug"), value=st.session_state.debug_mode, key="debug_mode")
-    debug_mode = st.session_state.debug_mode
-
-    # DEBUG ping (sadece debug açıkken, 1 kere)
-    if debug_mode and (not st.session_state.debug_pinged):
-        log_event(EVENTS_LOG_PATH, {
-            "event": "debug_ping",
-            "profile_id": st.session_state.get("profile_id"),
-            "session_id": st.session_state.get("session_id"),
-            "lang": st.session_state.get("lang", "tr"),
-        })
-        st.session_state.debug_pinged = True
-
-    # EVENT: app_opened (once per session)
-    if not st.session_state.event_started:
-        log_event(EVENTS_LOG_PATH, {
-            "event": "app_opened",
-            "profile_id": st.session_state.get("profile_id"),
-            "session_id": st.session_state.get("session_id"),
-            "lang": st.session_state.get("lang", "tr"),
-            "has_share_id": bool(st.query_params.get("id", None)),
-        })
-        st.session_state.event_started = True
-
-    # Questions
-    SORULAR = get_questions(lang)
-
-    # Shared link handling
-    qid = st.query_params.get("id", None)
-    if qid:
-        paylasilan = find_by_profile_id(RESULTS_LOG_PATH, str(qid))
-        if paylasilan:
-            paylasim_sayfasi_goster(paylasilan, lang)
-            st.stop()
-        else:
-            st.warning(t(lang, "shared_not_found"))
-            st.query_params.clear()
-
-    # Header
-    st.title(t(lang, "title"))
-    st.caption(t(lang, "subtitle"))
-
-    # Name + share checkbox
-    if st.session_state.adim == 0:
-        st.session_state.isim = st.text_input(
-            t(lang, "name_optional"),
-            value=st.session_state.get("isim", ""),
-            key="name_input",
-        ).strip()
-
-        st.session_state.paylas = st.checkbox(
-            t(lang, "show_name_in_matches"),
-            value=st.session_state.get("paylas", False),
-            key="show_name_checkbox",
+    with st.sidebar:
+        st.markdown("### IZ")
+        st.session_state["lang"] = st.selectbox(
+            "Dil", ["TR", "EN"], index=0 if st.session_state["lang"] == "TR" else 1
         )
+        st.session_state["debug"] = st.toggle("DEBUG", value=st.session_state.get("debug", False))
+        if st.session_state.get("debug") and st.session_state.get("last_sheets_status"):
+            st.caption(st.session_state["last_sheets_status"])
 
-    # Astro mode
-    if st.session_state.adim == 0:
-        st.session_state.astro = st.checkbox(
-            t(lang, "astro_mode"),
-            value=st.session_state.get("astro", False),
-            key="astro_checkbox",
-        )
+    if not st.session_state["_app_opened_logged"]:
+        log_event("app_opened", {"path": "main"})
+        st.session_state["_app_opened_logged"] = True
 
-        if st.session_state.astro:
-            dt0 = st.session_state.get("dogum_tarihi") or date.today()
-            dt = dogum_tarihi_secici(dt0, lang)
-            st.session_state.dogum_tarihi = dt
-            st.session_state.burc = burc_hesapla(dt, lang)
-        else:
-            st.session_state.dogum_tarihi = None
-            st.session_state.burc = None
+    questions = load_questions_for_lang(st.session_state["lang"])
 
-        if st.session_state.get("burc"):
-            sign = st.session_state.burc
-            theme = (BURC_TEMALARI_EN.get(sign, "") if lang == "en" else BURC_TEMALARI_TR.get(sign, ""))
-            st.info(f"{t(lang,'atmosphere')} ({sign}): {theme}")
-        else:
-            st.info(t(lang, "astro_off"))
+    st.markdown(
+        """
+        <div class="iz-hero">
+          <div style="font-size:28px;font-weight:800;">🧭 IZ</div>
+          <div class="iz-muted">Test bittiğinde sana benzer insanlarla uyumu gösterir.</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.write("")
 
-    # Reset
-    c1, c2 = st.columns([1, 1])
-    with c1:
-        if st.button(t(lang, "reset"), key="reset"):
-            log_event(EVENTS_LOG_PATH, {
-                "event": "reset_clicked",
-                "profile_id": st.session_state.get("profile_id"),
-                "session_id": st.session_state.get("session_id"),
-                "lang": st.session_state.get("lang", "tr"),
-            })
-            reset_game()
+    if st.session_state["step"] == "intro":
+        c1, c2 = st.columns([1, 1])
+        with c1:
+            st.session_state["name"] = st.text_input("İsim", value=st.session_state.get("name", ""))
+        with c2:
+            st.markdown("**Doğum tarihi**")
+            dob = dob_picker()
+
+        z = zodiac_from_date(dob)
+        st.caption(f"Burcun: **{z}**")
+
+        if st.button("Başla", type="primary"):
+            st.session_state["step"] = "quiz"
+            st.session_state["q_index"] = 0
+            st.session_state["answers"] = {}
+            log_event("intro_completed", {"name": st.session_state["name"], "dob": dob.isoformat(), "zodiac": z})
             st.rerun()
-    with c2:
-        st.write("")
+        return
 
-    # Progress
-    st.progress(min(st.session_state.adim / max(len(SORULAR), 1), 1.0))
-    st.write(f"{t(lang,'progress')}: **{st.session_state.adim}/{len(SORULAR)}**")
-    st.divider()
+    if st.session_state["step"] == "quiz":
+        total = len(questions)
+        qi = int(st.session_state["q_index"])
+        qi = max(0, min(qi, total - 1))
 
-    # Q flow
-    if st.session_state.adim < len(SORULAR):
-        soru, secenekler = SORULAR[st.session_state.adim]
-        st.subheader(soru)
+        st.write(f"Soru **{qi + 1} / {total}**")
+        st.progress((qi + 1) / total)
 
-        for yazi, etki, mini_sahne in secenekler:
-            if st.button(yazi, key=f"btn_{st.session_state.adim}_{yazi}"):
+        q = questions[qi]
+        st.markdown('<div class="iz-q">', unsafe_allow_html=True)
+        st.markdown(f"### {q.soru}")
 
-                log_event(EVENTS_LOG_PATH, {
-                    "event": "question_answered",
-                    "profile_id": st.session_state.get("profile_id"),
-                    "session_id": st.session_state.get("session_id"),
-                    "lang": st.session_state.get("lang", "tr"),
-                    "step": int(st.session_state.adim),
-                    "question": str(soru),
-                    "choice": str(yazi),
-                    "effect": etki,
-                })
+        labels = [o.yazi for o in q.options]
+        prev = st.session_state["answers"].get(qi, {}).get("yazi")
+        index = labels.index(prev) if prev in labels else None
 
-                uygula(etki, mini_sahne)
+        picked = st.radio(
+            label="",
+            options=labels,
+            index=index,
+            key=f"pick_{qi}",
+            label_visibility="collapsed",
+        )
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        if picked is not None and picked != prev:
+            opt = next(o for o in q.options if o.yazi == picked)
+            st.session_state["answers"][qi] = {"yazi": opt.yazi, "etki": opt.etki, "mini_sahne": opt.mini_sahne}
+            log_event("question_answered", {"qi": qi, "text": opt.yazi, "mini_sahne": opt.mini_sahne})
+
+            if qi < total - 1:
+                st.session_state["q_index"] = qi + 1
                 st.rerun()
+            st.session_state["step"] = "result"
+            st.rerun()
 
-    # Result
-    else:
-        isim = (st.session_state.get("isim") or "").strip() or ("Traveler" if lang == "en" else "Yolcu")
-        st.subheader(t(lang, "life_path_for").format(name=isim))
+        if st.button("Geri", disabled=(qi == 0)):
+            st.session_state["q_index"] = max(0, qi - 1)
+            st.rerun()
+        return
 
-        baskin, ikincil = baskin_ve_ikincil(st.session_state.puan)
-        a = ARSHETIPLER[baskin]
-        b = ARSHETIPLER[ikincil]
+    if st.session_state["step"] == "result":
+        dob_state = st.session_state.get("dob", {"year": 1990, "month": 1, "day": 1})
+        dob = date(int(dob_state["year"]), int(dob_state["month"]), int(dob_state["day"]))
+        z = zodiac_from_date(dob)
 
-        if "final_profile" not in st.session_state:
-            st.session_state.final_profile = sonuc_profili_uret(baskin, ikincil)
+        answers = st.session_state.get("answers", {})
+        totals = compute_scores(answers)
+        dom_key, dom_score = dominant_trait(totals)
+        profile = ARCHETYPE.get(dom_key, ARCHETYPE["merak"])
 
-            log_event(EVENTS_LOG_PATH, {
-                "event": "result_shown",
-                "profile_id": st.session_state.get("profile_id"),
-                "session_id": st.session_state.get("session_id"),
-                "lang": st.session_state.get("lang", "tr"),
-                "primary": baskin,
-                "secondary": ikincil,
-                "scores": dict(st.session_state.puan),
-            })
+        result_payload = {
+            "name": st.session_state.get("name", ""),
+            "dob": dob.isoformat(),
+            "zodiac": z,
+            "dominant": dom_key,
+            "score": dom_score,
+            "totals": totals,
+            "answers": answers,
+        }
 
-        profil = st.session_state.final_profile
+        log_event("result_shown", {"dominant": dom_key, "score": dom_score, "zodiac": z})
+        write_result(result_payload)
 
-        # Persist to results_log.jsonl only once
-        if not st.session_state.get("logged", False):
-            record = dict(profil)
-            record["profile_id"] = ensure_unique_profile_id(RESULTS_LOG_PATH, record.get("profile_id"))
-            written, pid = append_unique_by_profile_id(RESULTS_LOG_PATH, record)
-            profil["profile_id"] = pid
-            st.session_state.logged = True
-            cached_read_jsonl.clear()
- 
-             # Google Sheets'e de yaz
-         try:
-            ok, msg = gsheets_append_row("results", profil["profile_id"], record)
-         if st.session_state.get("debug_mode"):
-            st.caption(f"Sheets results append: {ok} / {msg}")
-         except Exception as e:
-            if st.session_state.get("debug_mode"):
-            st.caption(f"Sheets results append ERROR: {e}")
+        st.markdown("## Sonuç")
+        st.markdown(f"### {profile['icon']} {profile['title']}")
+        st.caption(f"Burcun: **{z}**")
+        st.markdown("**Güçlü yan:**")
+        st.write(profile["strength"])
+        st.markdown("**Kör nokta:**")
+        st.write(profile["shadow"])
+        st.markdown("**Bugünlük mikro hamle:**")
+        st.info(profile["micro"])
 
-
-        st.success(
-            f"{t(lang,'primary')}: **{a[lang]['name']} {a.get('icon','')}**  |  "
-            f"{t(lang,'secondary')}: **{b[lang]['name']} {b.get('icon','')}**"
-        )
-        st.markdown(kehanet_metni(baskin, ikincil, lang))
-
-        # -------------------------------------------------
-        # Share link (BURASI SHARE KISMI)  ✅ DOĞRU GİRİNTİ
-        # -------------------------------------------------
         st.divider()
-        st.subheader(t(lang, "share_title"))
+        st.markdown("## 🤝 Seninle en uyumlu kişiler")
 
-        share_id = profil.get("profile_id")
-
-        # Lokal link (senin bilgisayarın)
-        local_url = f"http://localhost:8501/?id={share_id}"
-
-        # Cloudflare/Deploy base adresi (opsiyonel)
-        st.session_state.tunnel_base = st.text_input(
-            "Cloudflare / Deploy adresin (opsiyonel)",
-            value=(st.session_state.get("tunnel_base") or ""),
-            placeholder="https://xxxxx.trycloudflare.com",
-            key="tunnel_base_input",
-        ).strip()
-
-        tunnel_url = (
-            f"{st.session_state.tunnel_base.rstrip('/')}/?id={share_id}"
-            if st.session_state.tunnel_base
-            else ""
-        )
-
-        colA, colB = st.columns([1, 2])
-        with colA:
-            if st.button(t(lang, "share_button"), key="btn_share_link"):
-                log_event(EVENTS_LOG_PATH, {
-                    "event": "share_link_created",
-                    "ts": datetime.now().isoformat(timespec="seconds"),
-                    "profile_id": st.session_state.get("profile_id"),
-                    "session_id": st.session_state.get("session_id"),
-                    "lang": st.session_state.get("lang", "tr"),
-                    "share_id": share_id,
-                })
-                st.session_state["last_share_id"] = share_id
-
-        with colB:
-            st.caption(t(lang, "share_hint"))
-
-        st.write("✅ Lokal link:")
-        st.text_input("Local URL", value=local_url, label_visibility="visible", key="local_url_output")
-
-        if tunnel_url:
-            st.write("✅ Paylaşılabilir link (Cloudflare/Deploy):")
-            st.text_input("Share URL", value=tunnel_url, label_visibility="visible", key="share_url_output")
+        ok, recent, msg = gsheets_fetch_recent_results(limit=60, max_rows_scan=1500)
+        if not ok:
+            st.error(f"Uyum listesi çekilemedi: {msg}")
         else:
-            st.info("Cloudflare/Deploy adresini girersen burada tam paylaşım linkini üretirim.")
+            me_id = st.session_state["profile_id"]
+            candidates = []
+            for r in recent:
+                pid = r.get("profile_id", "")
+                if not pid or pid == me_id:
+                    continue
+                payload = r.get("_result", {}) or {}
+                name = payload.get("name") or r.get("name") or "Anonim"
+                zodiac_b = payload.get("zodiac") or r.get("zodiac") or ""
+                totals_b = payload.get("totals") or {}
+                if not isinstance(totals_b, dict):
+                    continue
 
-        # Score summary
-        with st.expander(t(lang, "score_summary"), expanded=False):
-            table = []
-            for k in ["merak", "cesaret", "kontrol", "empati"]:
-                ar = ARSHETIPLER[k]
-                table.append({
-                    "Archetype" if lang == "en" else "Arketip": f"{ar[lang]['name']} {ar.get('icon','')}",
-                    "Score" if lang == "en" else "Puan": st.session_state.puan.get(k, 0),
-                })
-            st.table(table)
-
-        # Profile card
-        st.subheader(t(lang, "your_profile"))
-        with st.container(border=True):
-            st.markdown(f"### {isim} ({t(lang,'you_label')})")
-            st.write(
-                f"**{t(lang,'primary')}:** {a[lang]['name']} {a.get('icon','')}  |  "
-                f"**{t(lang,'secondary')}:** {b[lang]['name']} {b.get('icon','')}"
-            )
-            st.write(f"**{t(lang,'sign')}:** {st.session_state.get('burc') or '—'}")
-
-        # Matches
-        st.divider()
-        st.subheader(t(lang, "travelers_like_you"))
-
-        tum = jsonl_oku(limit=80)
-        yakinlar = eslesme_vitrini(profil, tum, top_n=2, mid_n=2, low_n=1)
-
-        st.subheader(t(lang, "best_matches"))
-        top2 = yakinlar[:2]
-        if not top2:
-            st.caption(t(lang, "not_enough_data"))
-        else:
-            for rank, (sk, br, p) in enumerate(top2, 1):
-                isim2 = (p.get("isim") or "").strip()
-                etiket2 = isim2 if (p.get("paylas") and isim2) else t(lang, "anonymous")
-
-                bsk2 = p.get("baskin")
-                ik2 = p.get("ikincil")
-                a1_2 = ARSHETIPLER.get(bsk2, {})
-                a2_2 = ARSHETIPLER.get(ik2, {})
-
-                baskin_text2 = f"{t(lang,'primary')}: {a1_2.get(lang,{}).get('name', bsk2)} {a1_2.get('icon','')}"
-                ikincil_text2 = f"{t(lang,'secondary')}: {a2_2.get(lang,{}).get('name', ik2)} {a2_2.get('icon','')}"
-                burc2 = p.get("burc") or "—"
-
-                debug_text2 = None
-                if debug_mode:
-                    debug_text2 = f"final01={br.final01:.3f} | raw={br.raw:.2f} shaped={br.shaped:.2f}"
-
-                render_match_card(
-                    idx=rank,
-                    ad=etiket2,
-                    sk=sk,
-                    baskin_text=baskin_text2,
-                    ikincil_text=ikincil_text2,
-                    burc=burc2,
-                    neden_maddeler=[],
-                    debug_mode=debug_mode,
-                    debug_text=debug_text2,
+                score, label, br = compute_compatibility(totals, totals_b, z, zodiac_b)
+                candidates.append(
+                    {
+                        "profile_id": pid,
+                        "name": name,
+                        "zodiac": zodiac_b,
+                        "score": score,
+                        "label": label,
+                        "sim_pct": br["sim_pct"],
+                        "element_bonus": br["element_bonus"],
+                        "variety_bonus": br["variety_bonus"],
+                        "dominant": payload.get("dominant") or r.get("dominant") or "",
+                    }
                 )
+
+            candidates.sort(key=lambda x: x["score"], reverse=True)
+            top = candidates[:5]
+
+            if not top:
+                st.info("Henüz yeterli kişi yok. 2-3 kişi daha test çözünce liste dolacak.")
+            else:
+                for m in top:
+                    note = (
+                        f"Benzerlik %{m['sim_pct']} • "
+                        f"Element bonusu +{m['element_bonus']} • "
+                        f"Çeşitlilik +{m['variety_bonus']}"
+                    )
+                    st.markdown(
+                        f"""
+                        <div class="iz-card">
+                          <div style="font-size:18px;font-weight:800;">
+                            {m['name']} <span style="font-weight:600;opacity:.7;">({m['zodiac']})</span>
+                          </div>
+                          <div style="margin-top:6px;">
+                            <b>{m['score']}/100</b> · {m['label']}
+                          </div>
+                          <div style="margin-top:6px;opacity:.75;">
+                            {note}
+                          </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
+                log_event("compatibility_list_shown", {"shown": len(top)})
+
+        if st.session_state.get("debug"):
+            st.json(result_payload)
+
+        if st.button("Başa dön"):
+            log_event("reset_clicked", {})
+            keep_lang = st.session_state.get("lang", "TR")
+            keep_debug = st.session_state.get("debug", False)
+            st.session_state.clear()
+            ensure_session()
+            st.session_state["lang"] = keep_lang
+            st.session_state["debug"] = keep_debug
+            st.session_state["step"] = "intro"
+            st.rerun()
+        return
 
 
 if __name__ == "__main__":
-    run()
+    run_app()
