@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import calendar
 import json
+import random
 import uuid
 from dataclasses import dataclass
 from datetime import date
@@ -13,7 +14,7 @@ import streamlit as st
 from app.storage import gsheets_append, gsheets_fetch_recent_results, utc_now_iso
 from app.compatibility import compute_compatibility
 
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.1.1"
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 
 
@@ -317,6 +318,52 @@ def dob_picker() -> date:
     return date(int(year), int(month), int(day))
 
 
+def _spark_reason(sim_pct: int, element_bonus: int, variety_bonus: int, z_self: str, z_other: str) -> str:
+    """
+    Teknik metrikleri insanca ve eğlenceli bir dile çevirir.
+    """
+    sim_pct = int(sim_pct or 0)
+    element_bonus = int(element_bonus or 0)
+    variety_bonus = int(variety_bonus or 0)
+
+    vibe_parts: List[str] = []
+
+    # Benzerlik tonları
+    if sim_pct >= 92:
+        vibe_parts.append("Aynı frekanstasınız. Cümle bitmeden ne demek istediğini anlarsın.")
+    elif sim_pct >= 85:
+        vibe_parts.append("Zihin ritminiz uyumlu. Birlikte hızlanmak kolay.")
+    else:
+        vibe_parts.append("Benzerlik var ama kopya değilsiniz. Bu iyi haber.")
+
+    # Burç/enerji (element_bonus) - teknik değil, enerji diye anlat
+    if element_bonus >= 12:
+        vibe_parts.append(f"{z_self} × {z_other} enerjisi akıyor. Uyum doğal geliyor.")
+    elif element_bonus >= 6:
+        vibe_parts.append(f"{z_self} × {z_other} dengeli. Çatışmadan üretmek mümkün.")
+    else:
+        vibe_parts.append(f"{z_self} × {z_other} biraz zıt. Doğru ayarda çok çekici olabilir.")
+
+    # Tamamlayıcılık (variety_bonus)
+    if variety_bonus >= 12:
+        vibe_parts.append("Sen başlatırsın, o bitirir. Takım işi gibi.")
+    elif variety_bonus >= 6:
+        vibe_parts.append("Biriniz gaza basar, biriniz frene dokunur. Sağlıklı denge.")
+    else:
+        vibe_parts.append("Benzer tarz. Birlikte sakin ve istikrarlı akarsınız.")
+
+    # Son cümle: sempatik punchline
+    tail = random.choice(
+        [
+            "Kısacası: birlikteyken hayat daha az yoruyor.",
+            "Kısacası: iyi bir ekip potansiyeli var.",
+            "Kısacası: bir kahve içip konuşsanız uzar bu sohbet.",
+            "Kısacası: “ben bunu biliyordum” dediğin türden bir uyum.",
+        ]
+    )
+    return " ".join(vibe_parts + [tail])
+
+
 def run_app() -> None:
     st.set_page_config(page_title="IZ", layout="wide")
     ensure_session()
@@ -356,14 +403,18 @@ def run_app() -> None:
             st.markdown("**Doğum tarihi**")
             dob = dob_picker()
 
-        z = zodiac_from_date(dob)
-        st.caption(f"Burcun: **{z}**")
+        zodiac_self = zodiac_from_date(dob)
+        st.session_state["zodiac"] = zodiac_self
+        st.caption(f"Burcun: **{zodiac_self}**")
 
         if st.button("Başla", type="primary"):
             st.session_state["step"] = "quiz"
             st.session_state["q_index"] = 0
             st.session_state["answers"] = {}
-            log_event("intro_completed", {"name": st.session_state["name"], "dob": dob.isoformat(), "zodiac": z})
+            log_event(
+                "intro_completed",
+                {"name": st.session_state["name"], "dob": dob.isoformat(), "zodiac": zodiac_self},
+            )
             st.rerun()
         return
 
@@ -400,6 +451,7 @@ def run_app() -> None:
             if qi < total - 1:
                 st.session_state["q_index"] = qi + 1
                 st.rerun()
+
             st.session_state["step"] = "result"
             st.rerun()
 
@@ -411,7 +463,8 @@ def run_app() -> None:
     if st.session_state["step"] == "result":
         dob_state = st.session_state.get("dob", {"year": 1990, "month": 1, "day": 1})
         dob = date(int(dob_state["year"]), int(dob_state["month"]), int(dob_state["day"]))
-        z = zodiac_from_date(dob)
+        zodiac_self = zodiac_from_date(dob)
+        st.session_state["zodiac"] = zodiac_self
 
         answers = st.session_state.get("answers", {})
         totals = compute_scores(answers)
@@ -421,19 +474,19 @@ def run_app() -> None:
         result_payload = {
             "name": st.session_state.get("name", ""),
             "dob": dob.isoformat(),
-            "zodiac": z,
+            "zodiac": zodiac_self,
             "dominant": dom_key,
             "score": dom_score,
             "totals": totals,
             "answers": answers,
         }
 
-        log_event("result_shown", {"dominant": dom_key, "score": dom_score, "zodiac": z})
+        log_event("result_shown", {"dominant": dom_key, "score": dom_score, "zodiac": zodiac_self})
         write_result(result_payload)
 
         st.markdown("## Sonuç")
         st.markdown(f"### {profile['icon']} {profile['title']}")
-        st.caption(f"Burcun: **{z}**")
+        st.caption(f"Burcun: **{zodiac_self}**")
         st.markdown("**Güçlü yan:**")
         st.write(profile["strength"])
         st.markdown("**Kör nokta:**")
@@ -449,11 +502,13 @@ def run_app() -> None:
             st.error(f"Uyum listesi çekilemedi: {msg}")
         else:
             me_id = st.session_state["profile_id"]
-            candidates = []
+            candidates: List[Dict[str, Any]] = []
+
             for r in recent:
                 pid = r.get("profile_id", "")
                 if not pid or pid == me_id:
                     continue
+
                 payload = r.get("_result", {}) or {}
                 name = payload.get("name") or r.get("name") or "Anonim"
                 zodiac_b = payload.get("zodiac") or r.get("zodiac") or ""
@@ -461,7 +516,7 @@ def run_app() -> None:
                 if not isinstance(totals_b, dict):
                     continue
 
-                score, label, br = compute_compatibility(totals, totals_b, z, zodiac_b)
+                score, label, br = compute_compatibility(totals, totals_b, zodiac_self, zodiac_b)
                 candidates.append(
                     {
                         "profile_id": pid,
@@ -469,39 +524,41 @@ def run_app() -> None:
                         "zodiac": zodiac_b,
                         "score": score,
                         "label": label,
-                        "sim_pct": br["sim_pct"],
-                        "element_bonus": br["element_bonus"],
-                        "variety_bonus": br["variety_bonus"],
+                        "sim_pct": br.get("sim_pct", 0),
+                        "element_bonus": br.get("element_bonus", 0),
+                        "variety_bonus": br.get("variety_bonus", 0),
                         "dominant": payload.get("dominant") or r.get("dominant") or "",
                     }
                 )
 
-            candidates.sort(key=lambda x: x["score"], reverse=True)
+            candidates.sort(key=lambda x: x.get("score", 0), reverse=True)
             top = candidates[:5]
 
             if not top:
                 st.info("Henüz yeterli kişi yok. 2-3 kişi daha test çözünce liste dolacak.")
             else:
                 for m in top:
-                    note = (
-                        f"Benzerlik %{m['sim_pct']} • "
-                        f"Element bonusu +{m['element_bonus']} • "
-                        f"Çeşitlilik +{m['variety_bonus']}"
-                    )
+                    zodiac_b = m.get("zodiac", "")
+                    sim_pct = int(m.get("sim_pct", 0) or 0)
+                    element_bonus = int(m.get("element_bonus", 0) or 0)
+                    variety_bonus = int(m.get("variety_bonus", 0) or 0)
+
+                    note = _spark_reason(sim_pct, element_bonus, variety_bonus, zodiac_self, zodiac_b)
+
                     st.markdown(
                         f"""
-                        <div class="iz-card">
-                          <div style="font-size:18px;font-weight:800;">
-                            {m['name']} <span style="font-weight:600;opacity:.7;">({m['zodiac']})</span>
-                          </div>
-                          <div style="margin-top:6px;">
-                            <b>{m['score']}/100</b> · {m['label']}
-                          </div>
-                          <div style="margin-top:6px;opacity:.75;">
-                            {note}
-                          </div>
-                        </div>
-                        """,
+<div class="iz-card">
+  <div style="font-size:18px;font-weight:800;">
+    {m.get('name','(isimsiz)')} <span style="font-weight:600;opacity:.7;">({m.get('zodiac','')})</span>
+  </div>
+  <div style="margin-top:6px;">
+    <b>{m.get('score', 0)}/100</b> • {m.get('label','')}
+  </div>
+  <div style="margin-top:8px; opacity:.92; line-height:1.45;">
+    {note}
+  </div>
+</div>
+""",
                         unsafe_allow_html=True,
                     )
 

@@ -31,21 +31,29 @@ def _service_account_info() -> Dict[str, Any]:
 
     info = dict(st.secrets["gcp_service_account"])
 
-    # Streamlit Cloud secrets bazen private_key'yi literal '\\n' ile getirir.
-    # PEM için gerçek newline şarttır. Ayrıca bazen başa/sona tırnak yapışır.
     pk = info.get("private_key", "")
     if isinstance(pk, str):
         pk = pk.strip()
+
+        # literal \\n -> gerçek newline
         pk = pk.replace("\\n", "\n")
 
+        # Windows CRLF -> LF
+        pk = pk.replace("\r\n", "\n").replace("\r", "\n")
+
+        # bazen tırnak yapışır
         if pk.startswith('"') and pk.endswith('"'):
             pk = pk[1:-1]
         if pk.startswith("'") and pk.endswith("'"):
             pk = pk[1:-1]
 
-        info["private_key"] = pk
+        # satır başlarında boşluk varsa PEM ölür
+        pk = "\n".join(line.strip() for line in pk.split("\n") if line.strip() != "")
+
+        info["private_key"] = pk + "\n"
 
     return info
+
 
 
 @st.cache_resource(show_spinner=False)
