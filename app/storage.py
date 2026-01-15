@@ -4,10 +4,10 @@ import json
 import time
 import traceback
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
-import streamlit as st
 import gspread
+import streamlit as st
 
 
 def utc_now_iso() -> str:
@@ -15,19 +15,36 @@ def utc_now_iso() -> str:
 
 
 def _secrets_sheet_id() -> str:
+    # Desteklediğimiz iki format:
+    # 1) SHEET_ID = "..."
+    # 2) [sheets] spreadsheet_id = "..."
     if "SHEET_ID" in st.secrets:
         return str(st.secrets["SHEET_ID"])
     if "sheets" in st.secrets and "spreadsheet_id" in st.secrets["sheets"]:
         return str(st.secrets["sheets"]["spreadsheet_id"])
-    raise KeyError("SHEET_ID yok. secrets.toml içine SHEET_ID veya [sheets].spreadsheet_id koy.")
+    raise KeyError("SHEET_ID yok. secrets içine SHEET_ID veya [sheets].spreadsheet_id koy.")
 
 
 def _service_account_info() -> Dict[str, Any]:
     if "gcp_service_account" not in st.secrets:
-        raise KeyError("gcp_service_account yok. secrets.toml içine [gcp_service_account] koy.")
+        raise KeyError("gcp_service_account yok. secrets içine [gcp_service_account] koy.")
+
     info = dict(st.secrets["gcp_service_account"])
-    if "private_key" in info and isinstance(info["private_key"], str):
-        info["private_key"] = info["private_key"].replace("\\n", "\n")
+
+    # Streamlit Cloud secrets bazen private_key'yi literal '\\n' ile getirir.
+    # PEM için gerçek newline şarttır. Ayrıca bazen başa/sona tırnak yapışır.
+    pk = info.get("private_key", "")
+    if isinstance(pk, str):
+        pk = pk.strip()
+        pk = pk.replace("\\n", "\n")
+
+        if pk.startswith('"') and pk.endswith('"'):
+            pk = pk[1:-1]
+        if pk.startswith("'") and pk.endswith("'"):
+            pk = pk[1:-1]
+
+        info["private_key"] = pk
+
     return info
 
 
@@ -43,6 +60,8 @@ def _get_spreadsheet(sheet_id: str):
 
 
 def _get_worksheet(sheet_id: str, tab_name: str):
+    # Worksheet objesini session_state içinde cache'liyoruz
+    # çünkü gereksiz "metadata read" (quota) patlatıyor.
     cache_key = f"_ws_cache::{sheet_id}"
     if cache_key not in st.session_state:
         st.session_state[cache_key] = {}
@@ -64,11 +83,18 @@ def _safe_json(x: Any) -> str:
 
 
 def gsheets_append(tab_name: str, row: Dict[str, Any]) -> Tuple[bool, str]:
+    """
+    Google Sheets'e tek satır append eder.
+    - Header 1. satırdan okunur ve session_state içinde cache'lenir.
+    - 429 quota için basit retry/backoff uygulanır.
+    """
     try:
         sheet_id = _secrets_sheet_id()
         ws = _get_worksheet(sheet_id, tab_name)
 
         header_cache_key = f"_header::{sheet_id}::{tab_name}"
+        header: List[str]
+
         if header_cache_key in st.session_state:
             header = st.session_state[header_cache_key]
         else:
@@ -111,7 +137,7 @@ def gsheets_fetch_recent_results(limit: int = 50, max_rows_scan: int = 1500) -> 
     results tabından son kayıtları getirir.
     Quota'yı korumak için:
       - 30 sn cache
-      - max_rows_scan ile aralığı sınırlı (büyürse ayarlarsın)
+      - max_rows_scan ile okuma aralığı sınırlı
     """
     try:
         sheet_id = _secrets_sheet_id()
@@ -121,14 +147,11 @@ def gsheets_fetch_recent_results(limit: int = 50, max_rows_scan: int = 1500) -> 
         if not header:
             return False, [], "results header boş."
 
-        # Basit ama efektif: A1:Z{max_rows_scan} ile sınırlı okuma
-        # (Erken dönemde yeterli; ileride DB’ye geçince ağlamazsın.)
         values = ws.get_values(f"A1:Z{max_rows_scan}")
         if not values or len(values) < 2:
             return True, [], "no data"
 
-        rows = values[1:]  # header hariç
-        # Sondan limit kadar al
+        rows = values[1:]
         rows = rows[-limit:]
 
         out: List[Dict[str, Any]] = []
@@ -136,7 +159,7 @@ def gsheets_fetch_recent_results(limit: int = 50, max_rows_scan: int = 1500) -> 
             d: Dict[str, Any] = {}
             for i, col in enumerate(header):
                 d[col] = r[i] if i < len(r) else ""
-            # result_json parse
+
             rj = d.get("result_json", "")
             if rj:
                 try:
@@ -145,6 +168,7 @@ def gsheets_fetch_recent_results(limit: int = 50, max_rows_scan: int = 1500) -> 
                     d["_result"] = {"raw": rj}
             else:
                 d["_result"] = d
+
             out.append(d)
 
         return True, out, "ok"
